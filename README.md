@@ -20,7 +20,7 @@ This guide will walk you through the steps to install and configure the **Meter 
 
 4. **Add the Integration:**
    - Go to **Settings > Devices & Services > Integrations**.
-   - Click **Add Integration** and search for **Meter Collector**.
+   - Click **Add Integration** and search for **AIOTED-hassio**.
    - Follow the prompts to configure the integration.
 
 ---
