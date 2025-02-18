@@ -32,5 +32,5 @@ Once the integration is added, you will need to configure it with the following 
 ### Required Configuration:
 - **Instance**: A unique name for your sensor (e.g., `cold_water_meter`).
 - **IP**: The URL to fetch the meter value.
-Optional Configuration:
-    Scan Interval: The time interval (in seconds) at which the integration will poll the meter for updates. Default is 300 seconds (5min).
+- Optional Configuration: </br>
+    **Scan Interval**: The time interval (in seconds) at which the integration will poll the meter for updates. Default is 300 seconds (5min).
