@@ -1,6 +1,6 @@
 {
   "domain": "AIOTED-hassio",
-  "name": "Meter Collector",
+  "name": "AIOTED-hassio",
   "version": "1.0",
   "documentation": "https://github.com/nliaudat/AIOTED-hassio",
   "issue_tracker": "https://github.com/nliaudat/AIOTED-hassio/issues",
