@@ -5,13 +5,13 @@ This guide will walk you through the steps to install and configure the **Meter 
 ## Installation
 
 1. **Copy the Integration Folder:**
-   - Download or clone the `meter_collector` custom component.
-   - Copy the `meter_collector` folder into your Home Assistant `custom_components` directory.
+   - Download or clone the `AIOTED-hassio` custom component.
+   - Copy the `AIOTED-hassio` folder into your Home Assistant `custom_components` directory.
 
 2. **OPTIONAL : Set Permissions:**
    - Ensure the folder and files have the correct permissions (755).
      ```bash
-     chmod -R 755 /homeassistant/custom_components/meter_collector
+     chmod -R 755 /homeassistant/custom_components/AIOTED-hassio
      ```
 
 3. **Reboot Home Assistant:**
