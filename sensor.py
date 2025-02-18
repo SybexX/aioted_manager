@@ -16,7 +16,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     error_url = f"http://{ip_address}/value?all=true&type=error"  # Add error URL
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-    data_dir = hass.config.path("custom_components/meter_collector/data", instance_name)
+    data_dir = hass.config.path("custom_components/AIOTED-hassio/data", instance_name)
 
     # Create the data directory if it doesn't exist
     os.makedirs(data_dir, exist_ok=True)

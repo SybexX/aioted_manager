@@ -1,9 +1,9 @@
 {
-  "domain": "meter_collector",
+  "domain": "AIOTED-hassio",
   "name": "Meter Collector",
   "version": "1.0",
-  "documentation": "https://github.com/nliaudat/meter-reader/tree/main/homeassistant/custom_components/meter_collector",
-  "issue_tracker": "https://github.com/nliaudat/meter-reader/issues",
+  "documentation": "https://github.com/nliaudat/AIOTED-hassio",
+  "issue_tracker": "https://github.com/nliaudat/AIOTED-hassio/issues",
   "dependencies": [],
   "integration_type": "service",
   "codeowners": ["@nliaudat"],
