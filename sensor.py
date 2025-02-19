@@ -13,15 +13,27 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     ip_address = config_entry.data["ip"]
     value_url = f"http://{ip_address}/value?all=true&type=raw"
     image_url = f"http://{ip_address}/img_tmp/alg.jpg"
-    error_url = f"http://{ip_address}/value?all=true&type=error"  # Add error URL
+    error_url = f"http://{ip_address}/value?all=true&type=error"
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+    log_as_csv = config_entry.options.get("log_as_csv", False)  # Default to False if not provided
+    save_images = config_entry.options.get("save_images", False)
     data_dir = hass.config.path("custom_components/AIOTED-hassio/data", instance_name)
 
     # Create the data directory if it doesn't exist
     os.makedirs(data_dir, exist_ok=True)
 
-    sensor = MeterCollectorSensor(hass, value_url, image_url, error_url, data_dir, scan_interval, instance_name)
+    sensor = MeterCollectorSensor(
+        hass=hass,
+        value_url=value_url,
+        image_url=image_url,
+        error_url=error_url,
+        data_dir=data_dir,
+        scan_interval=scan_interval,
+        instance_name=instance_name,
+        log_as_csv=log_as_csv,  # Pass log_as_csv
+        save_images=save_images  # Pass save_images
+    )
     async_add_entities([sensor])
 
     # Store the sensor in hass.data for service access
@@ -32,7 +44,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, value_url, image_url, error_url, data_dir, scan_interval, instance_name):
+    def __init__(self, hass, value_url, image_url, error_url, data_dir, scan_interval, instance_name, log_as_csv, save_images):
         """Initialize the sensor."""
         self._hass = hass
         self._value_url = value_url
@@ -41,12 +53,18 @@ class MeterCollectorSensor(Entity):
         self._data_dir = data_dir
         self._scan_interval = timedelta(seconds=scan_interval)
         self._instance_name = instance_name
+        self.log_as_csv = log_as_csv 
+        self.save_images = save_images 
         self._state = None
         self._attributes = {}
         self._last_update = None
         self._last_raw_value = None
         self._current_raw_value = None
         self._error_value = None 
+        
+        _LOGGER.debug(f"CSV logging enabled: {self.log_as_csv}")
+        _LOGGER.debug(f"Image saving enabled: {self.save_images}")
+        _LOGGER.debug(f"Data directory: {self._data_dir}")
 
     @property
     def name(self):
@@ -104,21 +122,24 @@ class MeterCollectorSensor(Entity):
                 _LOGGER.debug(f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}")
                 return
 
-            # Fetch image
-            async with session.get(self._image_url) as image_response:
-                image_response.raise_for_status()
-                image_data = await image_response.read()
+
 
             # Get the current Unix epoch time
             unix_epoch = int(datetime.now().timestamp())
 
             # Save raw value to CSV (Move to executor)
-            csv_file = os.path.join(self._data_dir, "log.csv")
-            await self._hass.async_add_executor_job(self._write_csv, csv_file, unix_epoch, raw_value, self._error_value)
+            if self.log_as_csv:
+                csv_file = os.path.join(self._data_dir, "log.csv")
+                await self._hass.async_add_executor_job(self._write_csv, csv_file, unix_epoch, raw_value, self._error_value)
 
             # Save image (Move to executor)
-            image_file = os.path.join(self._data_dir, f"{unix_epoch}_{raw_value}.jpg")
-            await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
+            if self.save_images:
+                # Fetch image
+                async with session.get(self._image_url) as image_response:
+                    image_response.raise_for_status()
+                    image_data = await image_response.read()
+                    image_file = os.path.join(self._data_dir, f"{unix_epoch}_{raw_value}.jpg")
+                    await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
 
             # Update state and attributes
             self._state = raw_value
@@ -144,13 +165,20 @@ class MeterCollectorSensor(Entity):
             self._state = "Error"
             self._attributes = {"error": str(e)}
 
+
     def _write_csv(self, csv_file, unix_epoch, raw_value, error_value):
         """Helper method to write data to a CSV file in an executor thread."""
-        with open(csv_file, "a", newline="") as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow([unix_epoch, raw_value, error_value])  # Add error value to CSV
+        try:
+            with open(csv_file, "a", newline="") as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow([unix_epoch, raw_value, error_value])
+        except Exception as e:
+            _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
 
     def _write_image(self, image_file, image_data):
         """Helper method to write image data to a file in an executor thread."""
-        with open(image_file, "wb") as imgfile:
-            imgfile.write(image_data)
+        try:
+            with open(image_file, "wb") as imgfile:
+                imgfile.write(image_data)
+        except Exception as e:
+            _LOGGER.error(f"Failed to write image to file {image_file}: {e}")
