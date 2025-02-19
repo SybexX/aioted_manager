@@ -123,10 +123,20 @@ class MeterCollectorSensor(Entity):
             # Get the current Unix epoch time
             unix_epoch = int(datetime.now().timestamp())
 
-            # Save raw value to CSV (Move to executor)
+            # Save all values to CSV (Move to executor)
             if self.log_as_csv:
                 csv_file = os.path.join(self._data_dir, "log.csv")
-                await self._hass.async_add_executor_job(self._write_csv, csv_file, unix_epoch, raw_value, error_value)
+                await self._hass.async_add_executor_job(
+                    self._write_csv,
+                    csv_file,
+                    unix_epoch,
+                    value,
+                    raw_value,
+                    pre,
+                    error_value,
+                    rate,
+                    timestamp
+                )
 
             # Save image (Move to executor)
             if self.save_images:
@@ -168,15 +178,33 @@ class MeterCollectorSensor(Entity):
             self._state = "Error"
             self._attributes = {"error": str(e)}
 
-    def _write_csv(self, csv_file, unix_epoch, raw_value, error_value):
-        """Helper method to write data to a CSV file in an executor thread."""
+    def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
+        """Helper method to write all values to a CSV file in an executor thread."""
         try:
             file_exists = os.path.isfile(csv_file)
             with open(csv_file, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
                 if not file_exists:
-                    csv_writer.writerow(["Timestamp", "Raw Value", "Error Value"])  # Write headers
-                csv_writer.writerow([unix_epoch, raw_value, error_value])
+                    # Write headers if the file doesn't exist
+                    csv_writer.writerow([
+                        "Timestamp",
+                        "Value",
+                        "Raw Value",
+                        "Pre",
+                        "Error",
+                        "Rate",
+                        "Timestamp (JSON)"
+                    ])
+                # Write the row with all values
+                csv_writer.writerow([
+                    unix_epoch,
+                    value,
+                    raw_value,
+                    pre,
+                    error_value,
+                    rate,
+                    timestamp
+                ])
         except Exception as e:
             _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
 
