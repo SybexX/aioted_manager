@@ -34,3 +34,8 @@ Once the integration is added, you will need to configure it with the following 
 - **IP**: The URL to fetch the meter value.
 - Optional Configuration: </br>
     **Scan Interval**: The time interval (in seconds) at which the integration will poll the meter for updates. Default is 300 seconds (5min).
+  
+    **log_as_csv**: log events in homeassistant\custom_components\AIOTED-hassio\data\{instance}
+  
+    **save_images**: save all changed images in homeassistant\custom_components\AIOTED-hassio\data\{instance}
+  
