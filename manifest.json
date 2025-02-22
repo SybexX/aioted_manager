@@ -1,7 +1,7 @@
 {
   "domain": "AIOTED-hassio",
   "name": "AIOTED-hassio",
-  "version": "1.0",
+  "version": "1.1",
   "documentation": "https://github.com/nliaudat/AIOTED-hassio",
   "issue_tracker": "https://github.com/nliaudat/AIOTED-hassio/issues",
   "dependencies": [],

@@ -7,6 +7,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 #from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, API_json, API_img_alg
 from .const import *
 
+
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
