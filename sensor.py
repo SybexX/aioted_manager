@@ -4,9 +4,7 @@ import csv
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-#from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, API_json, API_img_alg
 from .const import *
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,21 +12,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Meter Collector sensor from a config entry."""
     ip_address = config_entry.data["ip"]
     json_url = f"http://{ip_address}/{API_json}"
-    image_url = f"http://{ip_address}/{API_img_alg}"
+    image_url = f"http://{ip_address}/{API_img_alg}"  # Keep image_url for fetching remote images
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
     log_as_csv = config_entry.data.get("log_as_csv", False)
     save_images = config_entry.data.get("save_images", False)
-    data_dir = hass.config.path("custom_components/AIOTED-hassio/data", instance_name)
+    www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../www/AIOTED-hassio", instance_name))  # Save images in www folder
 
-    # Create the data directory if it doesn't exist
-    os.makedirs(data_dir, exist_ok=True)
+    # Create the www directory if it doesn't exist
+    os.makedirs(www_dir, exist_ok=True)
 
     sensor = MeterCollectorSensor(
         hass=hass,
         json_url=json_url,
-        image_url=image_url,
-        data_dir=data_dir,
+        image_url=image_url,  # Pass image_url to the sensor
+        www_dir=www_dir,  # Use www directory for images
         scan_interval=scan_interval,
         instance_name=instance_name,
         log_as_csv=log_as_csv,
@@ -44,12 +42,12 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, json_url, image_url, data_dir, scan_interval, instance_name, log_as_csv, save_images):
+    def __init__(self, hass, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images):
         """Initialize the sensor."""
         self._hass = hass
         self._json_url = json_url
-        self._image_url = image_url
-        self._data_dir = data_dir
+        self._image_url = image_url  # Keep image_url for fetching remote images
+        self._www_dir = www_dir  # Use www directory for images
         self._scan_interval = timedelta(seconds=scan_interval)
         self._instance_name = instance_name
         self.log_as_csv = log_as_csv
@@ -60,6 +58,7 @@ class MeterCollectorSensor(Entity):
         self._last_raw_value = None
         self._current_raw_value = None
         self._error_value = None
+        self._latest_image_path = None  # Path to the latest saved image
 
     @property
     def name(self):
@@ -75,6 +74,11 @@ class MeterCollectorSensor(Entity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         return self._attributes
+
+    @property
+    def entity_picture(self):
+        """Return the entity picture (local image path)."""
+        return self._latest_image_path
 
     async def async_update(self):
         """Fetch new state data for the sensor."""
@@ -127,7 +131,7 @@ class MeterCollectorSensor(Entity):
 
             # Save all values to CSV (Move to executor)
             if self.log_as_csv:
-                csv_file = os.path.join(self._data_dir, "log.csv")
+                csv_file = os.path.join(self._www_dir, "log.csv")
                 await self._hass.async_add_executor_job(
                     self._write_csv,
                     csv_file,
@@ -142,11 +146,12 @@ class MeterCollectorSensor(Entity):
 
             # Save image (Move to executor)
             if self.save_images:
-                # Fetch image
+                # Fetch image from the remote URL
                 async with session.get(self._image_url) as image_response:
                     image_response.raise_for_status()
                     image_data = await image_response.read()
-                    image_file = os.path.join(self._data_dir, f"{unix_epoch}_{raw_value}.jpg")
+                    image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
+                    self._latest_image_path = f"/local/AIOTED-hassio/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"  # Update the latest image path
                     await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
 
             # Update state and attributes
@@ -161,10 +166,10 @@ class MeterCollectorSensor(Entity):
                 "error": error_value,
                 "rate": rate,
                 "timestamp": timestamp,
-                "image_url": self._image_url,
                 "last_updated": datetime.now().isoformat(),
                 "last_raw_value": self._last_raw_value,
                 "current_raw_value": self._current_raw_value,
+                "entity_picture": self._latest_image_path,  # Expose the local image path
             }
 
             # Record the last update time and last raw value
