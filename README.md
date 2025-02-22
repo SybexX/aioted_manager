@@ -1,17 +1,17 @@
 # AI on the Edge Device  Meter Collector Integration for Home Assistant
 
-This guide will walk you through the steps to install and configure the **Meter Collector** custom integration in Home Assistant.
+This guide will walk you through the steps to install and configure the **AI on the Edge collector** custom integration in Home Assistant.
 
 ## Installation
 
 1. **Copy the Integration Folder:**
-   - Download or clone the `AIOTED-hassio` custom component.
-   - Copy the `AIOTED-hassio` folder into your Home Assistant `custom_components` directory.
+   - Download or clone the `aioted-hassio` custom component.
+   - Copy the `aioted-hassio` folder into your Home Assistant `custom_components` directory.
 
 2. **OPTIONAL : Set Permissions:**
    - Ensure the folder and files have the correct permissions (755).
      ```bash
-     chmod -R 755 /homeassistant/custom_components/AIOTED-hassio
+     chmod -R 755 /homeassistant/custom_components/aioted-hassio
      ```
 
 3. **Reboot Home Assistant:**
