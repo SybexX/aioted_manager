@@ -4,15 +4,16 @@ import csv
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+#from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, API_json, API_img_alg
+from .const import *
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Meter Collector sensor from a config entry."""
     ip_address = config_entry.data["ip"]
-    json_url = config_entry.data["json_url"]
-    image_url = config_entry.data["image_url"]
+    json_url = f"http://{ip_address}/{API_json}"
+    image_url = f"http://{ip_address}/{API_img_alg}"
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
     log_as_csv = config_entry.data.get("log_as_csv", False)
@@ -181,11 +182,18 @@ class MeterCollectorSensor(Entity):
     def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
         """Helper method to write all values to a CSV file in an executor thread."""
         try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+
+            # Check if the file exists
             file_exists = os.path.isfile(csv_file)
+
+            # Open the file in append mode
             with open(csv_file, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
+
+                # Write headers if the file doesn't exist
                 if not file_exists:
-                    # Write headers if the file doesn't exist
                     csv_writer.writerow([
                         "Timestamp",
                         "Value",
@@ -195,6 +203,7 @@ class MeterCollectorSensor(Entity):
                         "Rate",
                         "Timestamp (JSON)"
                     ])
+
                 # Write the row with all values
                 csv_writer.writerow([
                     unix_epoch,
