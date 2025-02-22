@@ -20,7 +20,7 @@ This guide will walk you through the steps to install and configure the **Meter 
 
 4. **Add the Integration:**
    - Go to **Settings > Devices & Services > Integrations**.
-   - Click **Add Integration** and search for **AIOTED-hassio**.
+   - Click **Add Integration** and search for **AI on the Edge collector**.
    - Follow the prompts to configure the integration.
 
 ---
