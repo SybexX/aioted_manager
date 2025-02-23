@@ -5,7 +5,7 @@ import voluptuous as vol
 
 from .sensor import MeterCollectorSensor
 
-DOMAIN = "AIOTED-hassio"
+DOMAIN = "aioted_manager"
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Meter Collector integration."""

@@ -2,7 +2,6 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.config_entries import ConfigEntry
-# from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .const import *
 
 class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -27,8 +26,8 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if scan_interval <= 0:
                 errors["scan_interval"] = "invalid_scan_interval"
 
-            # if not errors:
-                ## Construct URLs based on the provided IP
+            if not errors:
+                # Construct URLs based on the provided IP
                 # user_input["json_url"] = f"http://{ip_address}/{API_json}"
                 # user_input["image_url"] = f"http://{ip_address}/{API_img_alg}"
 
@@ -44,8 +43,8 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("instance_name"): str,
                 vol.Required("ip"): str,
                 vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
-                vol.Optional("log_as_csv", default=False): bool,
-                vol.Optional("save_images", default=False): bool,
+                vol.Optional("log_as_csv", default=True): bool,
+                vol.Optional("save_images", default=True): bool,
             }),
             errors=errors
         )
@@ -67,7 +66,7 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry):
         """Initialize options flow."""
-        #self.config_entry = config_entry
+         # self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -82,7 +81,7 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
                 vol.Required("instance_name", default=self.config_entry.data.get("instance_name")): str,
                 vol.Required("ip", default=self.config_entry.data.get("ip")): str,
                 vol.Optional("scan_interval", default=self.config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)): int,
-                vol.Optional("log_as_csv", default=self.config_entry.options.get("log_as_csv", False)): bool,
-                vol.Optional("save_images", default=self.config_entry.options.get("save_images", False)): bool,
+                vol.Optional("log_as_csv", default=self.config_entry.options.get("log_as_csv", True)): bool,
+                vol.Optional("save_images", default=self.config_entry.options.get("save_images", True)): bool,
             })
         )

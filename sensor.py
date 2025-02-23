@@ -12,12 +12,12 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Meter Collector sensor from a config entry."""
     ip_address = config_entry.data["ip"]
     json_url = f"http://{ip_address}/{API_json}"
-    image_url = f"http://{ip_address}/{API_img_alg}"  # Keep image_url for fetching remote images
+    image_url = f"http://{ip_address}/{API_img_alg}" 
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
     log_as_csv = config_entry.data.get("log_as_csv", False)
     save_images = config_entry.data.get("save_images", False)
-    www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../www/AIOTED-hassio", instance_name))  # Save images in www folder
+    www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../www/{DOMAIN}", instance_name))  # Save images in www folder
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
@@ -151,8 +151,9 @@ class MeterCollectorSensor(Entity):
                     image_response.raise_for_status()
                     image_data = await image_response.read()
                     image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
-                    self._latest_image_path = f"/local/AIOTED-hassio/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"  # Update the latest image path
+                    self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"  # Update the latest image path
                     await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
+                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, f"latest.jpg"), image_data) # save the latest.jpg
 
             # Update state and attributes
             self._state = raw_value

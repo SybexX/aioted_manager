@@ -1,4 +1,4 @@
-DOMAIN = "AIOTED-hassio"
+DOMAIN = "aioted_manager"
 DEFAULT_SCAN_INTERVAL = 300  # Default scan interval in seconds
 DEFAULT_FLOW_ROUND_TIME_WAIT = 30  # Default time in seconds to run a complete round
 
@@ -28,6 +28,3 @@ API_img_alg= "img_tmp/alg.jpg" #Show last aligned image
 # API_log_html = "log.html"
 # API_heap= "heap"
 # API_metrics= "metrics"
-
-
-
