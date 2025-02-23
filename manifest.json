@@ -7,6 +7,6 @@
   "dependencies": [],
   "integration_type": "service",
   "codeowners": ["@nliaudat"],
-  "requirements": ["aiohttp"],
+  "requirements": [],
   "config_flow": true
 }
