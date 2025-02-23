@@ -38,4 +38,10 @@ Once the integration is added, you will need to configure it with the following 
     **log_as_csv**: log events in homeassistant\www\aioted_manager\{instance}
   
     **save_images**: save all changed images in homeassistant\homeassistant\www\aioted_manager\{instance}
-  
+
+## Get image remotly
+```bash
+type: picture-entity
+entity: sensor.meter_collector_cold
+image: http://{IP}:8123/local/aioted_manager/{instance}/latest.jpg
+```
