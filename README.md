@@ -43,5 +43,6 @@ Once the integration is added, you will need to configure it with the following 
 ```bash
 type: picture-entity
 entity: sensor.meter_collector_cold
-image: http://{IP}:8123/local/aioted_manager/{instance}/latest.jpg
+image: local/aioted_manager/{instance}/latest.jpg
 ```
+or http://{hassio IP}:8123/local/aioted_manager/{instance}/latest.jpg
