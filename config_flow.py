@@ -26,7 +26,7 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if scan_interval <= 0:
                 errors["scan_interval"] = "invalid_scan_interval"
 
-            if not errors:
+            # if not errors:
                 # Construct URLs based on the provided IP
                 # user_input["json_url"] = f"http://{ip_address}/{API_json}"
                 # user_input["image_url"] = f"http://{ip_address}/{API_img_alg}"

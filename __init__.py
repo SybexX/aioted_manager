@@ -2,8 +2,11 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
+import logging
 
 from .sensor import MeterCollectorSensor
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "aioted_manager"
 
@@ -18,6 +21,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             vol.Required("instance_name"): str,
         }),
     )
+    _LOGGER.debug(f"Setting up {DOMAIN} integration")
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
