@@ -37,7 +37,7 @@ Once the integration is added, you will need to configure it with the following 
   
     **log_as_csv**: log events in homeassistant\www\aioted_manager\{instance}
   
-    **save_images**: save all changed images in homeassistant\homeassistant\www\aioted_manager\{instance}
+    **save_images**: save all changed images in homeassistant\www\aioted_manager\{instance}
 
 ## Get image remotly
 ```bash
