@@ -15,8 +15,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     image_url = f"http://{ip_address}/{API_img_alg}" 
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-    log_as_csv = config_entry.data.get("log_as_csv", False)
-    save_images = config_entry.data.get("save_images", False)
+    log_as_csv = config_entry.data.get("log_as_csv", True)
+    save_images = config_entry.data.get("save_images", True)
     www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../www/{DOMAIN}", instance_name))  # Save images in www folder
 
     # Create the www directory if it doesn't exist
@@ -24,9 +24,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     sensor = MeterCollectorSensor(
         hass=hass,
+        ip_address=ip_address,
         json_url=json_url,
-        image_url=image_url,  # Pass image_url to the sensor
-        www_dir=www_dir,  # Use www directory for images
+        image_url=image_url,
+        www_dir=www_dir,
         scan_interval=scan_interval,
         instance_name=instance_name,
         log_as_csv=log_as_csv,
@@ -42,12 +43,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images):
+    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images):
         """Initialize the sensor."""
         self._hass = hass
+        self._ip_address = ip_address
         self._json_url = json_url
-        self._image_url = image_url  # Keep image_url for fetching remote images
-        self._www_dir = www_dir  # Use www directory for images
+        self._image_url = image_url
+        self._www_dir = www_dir
         self._scan_interval = timedelta(seconds=scan_interval)
         self._instance_name = instance_name
         self.log_as_csv = log_as_csv
@@ -58,7 +60,7 @@ class MeterCollectorSensor(Entity):
         self._last_raw_value = None
         self._current_raw_value = None
         self._error_value = None
-        self._latest_image_path = None  # Path to the latest saved image
+        self._latest_image_path = None
 
     @property
     def name(self):
@@ -91,18 +93,30 @@ class MeterCollectorSensor(Entity):
             session = async_get_clientsession(self._hass)
 
             # Fetch JSON data
-            async with session.get(self._json_url) as response:
-                response.raise_for_status()
-                data = await response.json()
+            try:
+                async with session.get(self._json_url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+            except Exception as e:
+                _LOGGER.error(f"Failed to fetch JSON data from {self._json_url}: {e}")
+                self._state = "Error"
+                self._attributes = {"error": f"Failed to fetch JSON data: {e}"}
+                return
 
-            # Dynamically handle the top-level key
+            # Validate JSON data
             if not data or not isinstance(data, dict):
-                raise ValueError("Invalid JSON structure: Expected a dictionary")
+                _LOGGER.error(f"Invalid JSON structure: Expected a dictionary, got {type(data)}")
+                self._state = "Error"
+                self._attributes = {"error": "Invalid JSON structure"}
+                return
 
             # Get the first (and only) top-level key
             top_level_key = next(iter(data.keys()), None)
             if not top_level_key:
-                raise ValueError("No top-level key found in JSON data")
+                _LOGGER.error("No top-level key found in JSON data")
+                self._state = "Error"
+                self._attributes = {"error": "No top-level key found in JSON data"}
+                return
 
             # Extract values from the nested object
             nested_data = data.get(top_level_key, {})
@@ -113,10 +127,11 @@ class MeterCollectorSensor(Entity):
             rate = nested_data.get("rate")
             timestamp = nested_data.get("timestamp")
 
+            # Validate raw_value
             try:
                 raw_value_float = float(raw_value)
-            except ValueError:
-                _LOGGER.error(f"Invalid raw value received: {raw_value}")
+            except (ValueError, TypeError) as e:
+                _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
                 self._state = "Error"
                 self._attributes = {"error": f"Invalid raw value: {raw_value}"}
                 return
@@ -132,28 +147,41 @@ class MeterCollectorSensor(Entity):
             # Save all values to CSV (Move to executor)
             if self.log_as_csv:
                 csv_file = os.path.join(self._www_dir, "log.csv")
-                await self._hass.async_add_executor_job(
-                    self._write_csv,
-                    csv_file,
-                    unix_epoch,
-                    value,
-                    raw_value,
-                    pre,
-                    error_value,
-                    rate,
-                    timestamp
-                )
+                try:
+                    await self._hass.async_add_executor_job(
+                        self._write_csv,
+                        csv_file,
+                        unix_epoch,
+                        value,
+                        raw_value,
+                        pre,
+                        error_value,
+                        rate,
+                        timestamp
+                    )
+                except Exception as e:
+                    _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
 
             # Save image (Move to executor)
             if self.save_images:
-                # Fetch image from the remote URL
-                async with session.get(self._image_url) as image_response:
-                    image_response.raise_for_status()
-                    image_data = await image_response.read()
+                try:
+                    # Fetch image from the remote URL
+                    async with session.get(self._image_url) as image_response:
+                        image_response.raise_for_status()
+                        image_data = await image_response.read()
+
+                    # Determine image file name
                     image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
-                    self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"  # Update the latest image path
+                    if error_value == "no error":
+                        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"
+                    else:
+                        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
+
+                    # Save the image
                     await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
-                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, f"latest.jpg"), image_data) # save the latest.jpg
+                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data)
+                except Exception as e:
+                    _LOGGER.error(f"Failed to fetch or save image: {e}")
 
             # Update state and attributes
             self._state = raw_value
@@ -170,19 +198,26 @@ class MeterCollectorSensor(Entity):
                 "last_updated": datetime.now().isoformat(),
                 "last_raw_value": self._last_raw_value,
                 "current_raw_value": self._current_raw_value,
-                "entity_picture": self._latest_image_path,  # Expose the local image path
+                "entity_picture": self._latest_image_path,
             }
 
             # Record the last update time and last raw value
             self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
 
-            # Log error if present
+            # Set prevalue on error
             if error_value.lower() != "no error":
                 _LOGGER.warning(f"Error detected: {error_value}")
+                try:
+                    prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={pre}"
+                    async with session.get(prevalue_url) as prevalue_response:
+                        prevalue_response.raise_for_status()
+                        data = await prevalue_response.text()
+                except Exception as e:
+                    _LOGGER.error(f"Failed to set prevalue: {e}")
 
         except Exception as e:
-            _LOGGER.error(f"Error fetching data: {e}")
+            _LOGGER.error(f"Unexpected error during update: {e}")
             self._state = "Error"
             self._attributes = {"error": str(e)}
 
