@@ -4,7 +4,7 @@ DEFAULT_FLOW_ROUND_TIME_WAIT = 30  # Default time in seconds to run a complete r
 
 ### api doc : https://jomjol.github.io/AI-on-the-edge-device-docs/REST-API/
 API_flow_start = "flow_start"
-API_setPreValue = "setPreValue?numbers" #/setPreValue?numbers={instance_name}&value{last_raw_value}
+# API_setPreValue = "setPreValue?numbers" #/setPreValue?numbers={instance_name}&value{last_raw_value}
 API_reboot = "reboot"
 # API_mqtt_publish_discovery = "mqtt_publish_discovery"
 API_json = "json"
