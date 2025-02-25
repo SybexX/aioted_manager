@@ -53,6 +53,17 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
                 vol.Optional("log_as_csv", default=True): bool,
                 vol.Optional("save_images", default=True): bool,
+                vol.Required("device_class"): vol.In({
+                    "power",
+                    "water",
+                    "gas",
+                }),
+                # https://github.com/home-assistant/core/blob/dev/homeassistant/const.py
+                vol.Required("unit_of_measurement"): vol.In({
+                    "L",
+                    "m³",
+                    "kW",
+                }),
             }),
             errors=errors
         )
@@ -75,7 +86,7 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # self.config_entry = config_entry
         _LOGGER.debug(f"Initialized options flow for config entry: {config_entry.entry_id}")
 
     async def async_step_init(self, user_input=None) -> FlowResult:

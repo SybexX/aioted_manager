@@ -1,3 +1,7 @@
+# from enum import StrEnum
+# from homeassistant.components.sensor import SensorDeviceClass
+
+# Default values
 DOMAIN = "aioted_manager"
 DEFAULT_SCAN_INTERVAL = 300  # Default scan interval in seconds
 DEFAULT_FLOW_ROUND_TIME_WAIT = 30  # Default time in seconds to run a complete round
@@ -28,3 +32,35 @@ API_img_alg= "img_tmp/alg.jpg" #Show last aligned image
 # API_log_html = "log.html"
 # API_heap= "heap"
 # API_metrics= "metrics"
+
+
+
+
+# class UnitOfPower(StrEnum):
+    # """Power units."""
+
+    # MILLIWATT = "mW"
+    # WATT = "W"
+    # KILO_WATT = "kW"
+    # MEGA_WATT = "MW"
+    # GIGA_WATT = "GW"
+    # TERA_WATT = "TW"
+    # BTU_PER_HOUR = "BTU/h"
+
+# class UnitOfVolume(StrEnum):
+    # """Volume units."""
+
+    # CUBIC_FEET = "ft³"
+    # CENTUM_CUBIC_FEET = "CCF"
+    # CUBIC_METERS = "m³"
+    # LITERS = "L"
+    # MILLILITERS = "mL"
+    # GALLONS = "gal"
+    
+
+# Device class options
+# DEVICE_CLASSES = {
+    # SensorDeviceClass.POWER: UnitOfPower.KILO_WATT,  # Default unit for power
+    # SensorDeviceClass.WATER: UnitOfVolume.LITERS,  # Default unit for water
+    # SensorDeviceClass.GAS: UnitOfVolume.CUBIC_METERS, # Default unit for gas
+# }
