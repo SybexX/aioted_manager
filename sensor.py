@@ -4,6 +4,7 @@ import csv
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+# from homeassistant.components.sensor import SensorDeviceClass
 from .const import *
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     log_as_csv = config_entry.data.get("log_as_csv", True)
     save_images = config_entry.data.get("save_images", True)
     www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../www/{DOMAIN}", instance_name))  # Save images in www folder
+    # device_class = config_entry.data["device_class"]
+    # unit_of_measurement = config_entry.data["unit_of_measurement"]
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
@@ -31,7 +34,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         scan_interval=scan_interval,
         instance_name=instance_name,
         log_as_csv=log_as_csv,
-        save_images=save_images
+        save_images=save_images,
+        # device_class=device_class,
+        # unit_of_measurement=unit_of_measurement,
     )
     async_add_entities([sensor])
 
@@ -43,7 +48,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images):
+    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images ): #, device_class, unit_of_measurement):
         """Initialize the sensor."""
         self._hass = hass
         self._ip_address = ip_address
@@ -61,6 +66,8 @@ class MeterCollectorSensor(Entity):
         self._current_raw_value = None
         self._error_value = None
         self._latest_image_path = None
+        # self._device_class = device_class
+        # self._unit_of_measurement = unit_of_measurement
 
     @property
     def name(self):
@@ -71,6 +78,16 @@ class MeterCollectorSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._state
+        
+    # @property
+    # def device_class(self):
+        # """Return the device class of the sensor."""
+        # return self._device_class
+
+    # @property
+    # def native_unit_of_measurement(self):
+        # """Return the unit of measurement of the sensor."""
+        # return self._unit_of_measurement
 
     @property
     def extra_state_attributes(self):
@@ -171,15 +188,17 @@ class MeterCollectorSensor(Entity):
                         image_data = await image_response.read()
 
                     # Determine image file name
-                    image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
+                    # image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
                     if error_value == "no error":
-                        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"
+                        # self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"
+                        image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
                     else:
-                        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
+                        # self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
+                        image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}_err.jpg")
 
                     # Save the image
-                    await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
-                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data)
+                    await self._hass.async_add_executor_job(self._write_image, image_file, image_data) #current image
+                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data) #latest (to simple image entities access)
                 except Exception as e:
                     _LOGGER.error(f"Failed to fetch or save image: {e}")
 
@@ -209,7 +228,11 @@ class MeterCollectorSensor(Entity):
             if error_value.lower() != "no error":
                 _LOGGER.warning(f"Error detected: {error_value}")
                 try:
-                    prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={pre}"
+                    if raw_value_float < float(pre):
+                        prevalue = round(raw_value_float)
+                    else:
+                        prevalue = round(float(pre))
+                    prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
                     async with session.get(prevalue_url) as prevalue_response:
                         prevalue_response.raise_for_status()
                         data = await prevalue_response.text()
