@@ -9,6 +9,9 @@
 * ~~device_class~~
 * ~~unit_of_measurement~~
 
+#### ~~Reboot Device button~~ 
+* ~~button.py (only reboot, as for template button)~~
+
 #### Upload images to improve AI model
 
 * https://github.com/jomjol/AI-on-the-edge-device/discussions/3551
