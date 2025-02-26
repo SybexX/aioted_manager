@@ -21,6 +21,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../www/{DOMAIN}", instance_name))  # Save images in www folder
     device_class = config_entry.data["device_class"]
     unit_of_measurement = config_entry.data["unit_of_measurement"]
+    enable_upload = config_entry.data.get("enable_upload", False)
+    upload_url = config_entry.data.get("upload_url", "")
+    api_key = config_entry.data.get("api_key", "")
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
@@ -37,6 +40,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         save_images=save_images,
         device_class=device_class,
         unit_of_measurement=unit_of_measurement,
+        enable_upload=enable_upload,
+        upload_url=upload_url,
+        api_key=api_key,
     )
     async_add_entities([sensor])
 
@@ -48,7 +54,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images , device_class, unit_of_measurement):
+    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images , device_class, unit_of_measurement, enable_upload, upload_url, api_key):
         """Initialize the sensor."""
         self._hass = hass
         self._ip_address = ip_address
@@ -67,7 +73,9 @@ class MeterCollectorSensor(Entity):
         self._error_value = None
         self._latest_image_path = None
         self._device_class = device_class
-        self._unit_of_measurement = unit_of_measurement
+        self.enable_upload = enable_upload
+        self.upload_url = upload_url
+        self.api_key = api_key
 
     @property
     def name(self):
