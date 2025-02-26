@@ -1,6 +1,9 @@
 # AI on the Edge Device  Meter Collector Integration for Home Assistant
 
+The main goal of the project is to replace the mqtt gateway needed to implement "AI on the Edge Device" with home assistant
+
 This guide will walk you through the steps to install and configure the **"AIOTED manager"** custom integration in Home Assistant.
+
 
 ## Installation
 
