@@ -4,6 +4,8 @@ The main goal of the project is to replace the mqtt gateway needed to implement 
 
 This guide will walk you through the steps to install and configure the **"AIOTED manager"** custom integration in Home Assistant.
 
+![image](https://github.com/user-attachments/assets/30e62ae1-1644-4da6-88ca-04afc89f7647)
+
 
 ## Installation
 
