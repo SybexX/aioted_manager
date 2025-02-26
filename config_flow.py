@@ -62,7 +62,15 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("unit_of_measurement"): vol.In({
                     "L",
                     "m³",
+                    "ft³",
+                    "CCF",
+                    "gal",
                     "kW",
+                    "W",
+                    "MW",
+                    "GW",
+                    "TW",
+                    "BTU/h",
                 }),
             }),
             errors=errors
