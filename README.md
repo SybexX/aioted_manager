@@ -46,8 +46,11 @@ Once the integration is added, you will need to configure it with the following 
 
 ## Get image remotly
 ```bash
-type: picture-entity
-entity: sensor.meter_collector_cold
-image: local/aioted_manager/{instance}/latest.jpg
+~~type: picture-entity~~
+~~entity: sensor.meter_collector_cold~~
+~~image: local/aioted_manager/{instance}/latest.jpg~~
 ```
-or http://{hassio IP}:8123/local/aioted_manager/{instance}/latest.jpg
+~~or http://{hassio IP}:8123/local/aioted_manager/{instance}/latest.jpg~~
+The image do not refresh, it's a known bug. 
+you can use the local file component (https://www.home-assistant.io/integrations/local_file/)
+with www/aioted_manager/{instance}/latest.jpg as path
