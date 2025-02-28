@@ -5,7 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import FlowResult
 import logging
 import re
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, SHARED_SCHEMA, DEVICE_CLASSES, UNIT_OF_MEASUREMENTS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,34 +47,7 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug("Displaying configuration form")
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required("instance_name"): str,
-                vol.Required("ip"): str,
-                vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
-                vol.Optional("log_as_csv", default=True): bool,
-                vol.Optional("save_images", default=True): bool,
-                vol.Required("device_class"): vol.In({
-                    "power",
-                    "water",
-                    "gas",
-                }),
-                vol.Required("unit_of_measurement"): vol.In({
-                    "L",
-                    "m³",
-                    "ft³",
-                    "CCF",
-                    "gal",
-                    "kW",
-                    "W",
-                    "MW",
-                    "GW",
-                    "TW",
-                    "BTU/h",
-                }),
-                vol.Optional("enable_upload", default=False): bool,
-                vol.Optional("upload_url"): str,
-                vol.Optional("api_key"): str,
-            }),
+            data_schema=vol.Schema(SHARED_SCHEMA), #use shared shema
             errors=errors
         )
 
@@ -94,50 +67,55 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
     """Handle an options flow for Meter Collector."""
 
-    def __init__(self, config_entry: ConfigEntry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    # def __init__(self, config_entry: ConfigEntry):
+    #     """Initialize options flow."""
+    #     self.config_entry = config_entry #removed
+    #     _LOGGER.debug(f"Initialized options flow for config entry: {config_entry.entry_id}") #replaced by next line
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize MeterCollectorOptionsFlow."""
         _LOGGER.debug(f"Initialized options flow for config entry: {config_entry.entry_id}")
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Manage the options."""
         _LOGGER.debug("Starting options configuration step")
+        errors={}
 
         if user_input is not None:
             _LOGGER.debug(f"User input received for options: {user_input}")
-            # Update the config entry with new options
-            return self.async_create_entry(title="", data=user_input)
-
+            # Validate IP address format
+            ip_address = user_input.get("ip")
+            if not self._is_valid_ip(ip_address):
+                errors["ip"] = "invalid_ip"
+                _LOGGER.error(f"Invalid IP address format: {ip_address}")
+            
+            # Validate scan_interval
+            scan_interval = user_input.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+            if scan_interval <= 0:
+                errors["scan_interval"] = "invalid_scan_interval"
+                _LOGGER.error(f"Invalid scan interval: {scan_interval}")
+            
+            if not errors:
+                _LOGGER.debug("Validation successful, creating option config entry")
+                # Update the config entry with new options
+                return self.async_create_entry(title="", data=user_input)
+            else:
+                _LOGGER.error(f"validation fail")
         # Show the form with current values
         _LOGGER.debug("Displaying options form")
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({
+        data_schema={
                 vol.Required("instance_name", default=self.config_entry.data.get("instance_name")): str,
                 vol.Required("ip", default=self.config_entry.data.get("ip")): str,
+                vol.Required("device_class", default=self.config_entry.data.get("device_class")): vol.In(DEVICE_CLASSES),
+                vol.Required("unit_of_measurement", default=self.config_entry.data.get("unit_of_measurement")): vol.In(UNIT_OF_MEASUREMENTS),
                 vol.Optional("scan_interval", default=self.config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)): int,
                 vol.Optional("log_as_csv", default=self.config_entry.options.get("log_as_csv", True)): bool,
                 vol.Optional("save_images", default=self.config_entry.options.get("save_images", True)): bool,
-                vol.Required("device_class", default=self.config_entry.data.get("device_class")): vol.In({
-                    "power",
-                    "water",
-                    "gas",
-                }),
-                vol.Required("unit_of_measurement", default=self.config_entry.data.get("unit_of_measurement")): vol.In({
-                    "L",
-                    "m³",
-                    "ft³",
-                    "CCF",
-                    "gal",
-                    "kW",
-                    "W",
-                    "MW",
-                    "GW",
-                    "TW",
-                    "BTU/h",
-                }),
                 vol.Optional("enable_upload", default=self.config_entry.data.get("enable_upload", False)): bool,
                 vol.Optional("upload_url", default=self.config_entry.data.get("upload_url", "")): str,
                 vol.Optional("api_key", default=self.config_entry.data.get("api_key", "")): str,
-            })
+            }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(data_schema),
+            errors=errors,
         )

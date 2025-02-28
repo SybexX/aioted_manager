@@ -28,16 +28,24 @@ class RebootButton(ButtonEntity):
         self._instance_name = instance_name
         self._attr_name = f"Reboot Device ({self._instance_name})"
         self._attr_unique_id = f"reboot_button_{self._instance_name}"
-        self._attr_device_class = "restart"  # Use the RESTART device class
-        self._attr_icon = "mdi:restart"  # Optional: Add an icon
+        self._attr_device_class = "restart"
+        self._attr_icon = "mdi:restart"
+        self._is_rebooting = False  # Add a new state to check if rebooting
 
     @property
     def url(self):
         """Return the reboot URL."""
         return f"http://{self._ip_address}/{API_reboot}"
 
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {"is_rebooting": self._is_rebooting}
+
     async def async_press(self):
         """Handle the button press."""
+        self._is_rebooting = True
+        self.async_write_ha_state()  # force update on button
         session = async_get_clientsession(self._hass)
 
         try:
@@ -49,3 +57,6 @@ class RebootButton(ButtonEntity):
                     _LOGGER.error(f"Failed to reboot {self._instance_name}. Status code: {response.status}")
         except Exception as e:
             _LOGGER.error(f"An error occurred while rebooting {self._instance_name}: {e}")
+        finally:
+            self._is_rebooting = False
+            self.async_write_ha_state()  # force update on button

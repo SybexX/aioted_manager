@@ -30,3 +30,40 @@ API_img_alg= "img_tmp/alg.jpg" #Show last aligned image
 # API_heap= "heap"
 # API_metrics= "metrics"
 
+import voluptuous as vol
+
+# Define the valid options for device class and unit of measurement
+DEVICE_CLASSES = {
+    "power",
+    "water",
+    "gas",
+}
+
+UNIT_OF_MEASUREMENTS = {
+    "L",
+    "m³",
+    "ft³",
+    "CCF",
+    "gal",
+    "kW",
+    "W",
+    "MW",
+    "GW",
+    "TW",
+    "BTU/h",
+}
+
+# Define the shared schema
+SHARED_SCHEMA = {
+    vol.Required("instance_name"): str,
+    vol.Required("ip"): str,
+    vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
+    vol.Optional("log_as_csv", default=True): bool,
+    vol.Optional("save_images", default=True): bool,
+    vol.Required("device_class"): vol.In(DEVICE_CLASSES),
+    vol.Required("unit_of_measurement"): vol.In(UNIT_OF_MEASUREMENTS),
+    vol.Optional("enable_upload", default=False): bool,
+    vol.Optional("upload_url"): str,
+    vol.Optional("api_key"): str,
+}
+

@@ -13,17 +13,17 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Meter Collector sensor from a config entry."""
     ip_address = config_entry.data["ip"]
     json_url = f"http://{ip_address}/{API_json}"
-    image_url = f"http://{ip_address}/{API_img_alg}" 
+    image_url = f"http://{ip_address}/{API_img_alg}"
     instance_name = config_entry.data["instance_name"]
     scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-    log_as_csv = config_entry.data.get("log_as_csv", True)
-    save_images = config_entry.data.get("save_images", True)
+    log_as_csv = config_entry.options.get("log_as_csv", True)  # Use options for log_as_csv
+    save_images = config_entry.options.get("save_images", True)  # Use options for save_images
     www_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../www/{DOMAIN}", instance_name))  # Save images in www folder
     device_class = config_entry.data["device_class"]
     unit_of_measurement = config_entry.data["unit_of_measurement"]
-    enable_upload = config_entry.data.get("enable_upload", False)
-    upload_url = config_entry.data.get("upload_url", "")
-    api_key = config_entry.data.get("api_key", "")
+    enable_upload = config_entry.options.get("enable_upload", False)
+    upload_url = config_entry.options.get("upload_url", "")
+    api_key = config_entry.options.get("api_key", "")
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
@@ -43,6 +43,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         enable_upload=enable_upload,
         upload_url=upload_url,
         api_key=api_key,
+        config_entry=config_entry
     )
     async_add_entities([sensor])
 
@@ -54,7 +55,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images , device_class, unit_of_measurement, enable_upload, upload_url, api_key):
+    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images , device_class, unit_of_measurement, enable_upload, upload_url, api_key, config_entry):
         """Initialize the sensor."""
         self._hass = hass
         self._ip_address = ip_address
@@ -73,9 +74,12 @@ class MeterCollectorSensor(Entity):
         self._error_value = None
         self._latest_image_path = None
         self._device_class = device_class
+        self._unit_of_measurement = unit_of_measurement
         self.enable_upload = enable_upload
         self.upload_url = upload_url
         self.api_key = api_key
+        self._config_entry = config_entry
+        self._enabled = True  # Default to enabled
 
     @property
     def name(self):
@@ -86,7 +90,7 @@ class MeterCollectorSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._state
-        
+
     @property
     def device_class(self):
         """Return the device class of the sensor."""
@@ -107,9 +111,19 @@ class MeterCollectorSensor(Entity):
         """Return the entity picture (local image path)."""
         return self._latest_image_path
 
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self._enabled
+
     async def async_update(self):
         """Fetch new state data for the sensor."""
         try:
+            # Check if device is enabled
+            if not self._enabled:
+                _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
+                return
+
             # Throttle updates based on scan_interval
             if self._last_update and (datetime.now() - self._last_update) < self._scan_interval:
                 _LOGGER.debug("Skipping update due to throttle")
@@ -200,7 +214,7 @@ class MeterCollectorSensor(Entity):
                     if error_value == "no error":
                         self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"
                         image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
-                    else:
+                    else: #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
                         self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
                         image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}_err.jpg")
 
@@ -232,7 +246,7 @@ class MeterCollectorSensor(Entity):
             self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
 
-            # Set prevalue on error
+            # Set prevalue on error #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
             if error_value.lower() != "no error":
                 _LOGGER.warning(f"Error detected: {error_value}")
                 try:
