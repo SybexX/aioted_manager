@@ -67,7 +67,7 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry: ConfigEntry) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
         _LOGGER.debug("Initializing options flow")
-        return MeterCollectorOptionsFlow(config_entry)
+        return MeterCollectorOptionsFlow()
 
     def _is_valid_ip(self, ip: str) -> bool:
         """Validate IP address format."""
@@ -82,10 +82,7 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
     """Handle an options flow for Meter Collector."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize MeterCollectorOptionsFlow."""
-        # self.config_entry = config_entry
-        _LOGGER.debug(f"Initialized options flow for config entry: {config_entry.entry_id}")
+    # Removed: __init__ method. No need to assign self.config_entry manually
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Manage the options."""
