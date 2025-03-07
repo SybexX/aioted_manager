@@ -162,18 +162,49 @@ class MeterCollectorSensor(Entity):
             value = nested_data.get("value")
             raw_value = nested_data.get("raw")
             pre = nested_data.get("pre")
-            error_value = nested_data.get("error", "no error")
+            error_value = nested_data.get("error") #, "no error")
             rate = nested_data.get("rate")
             timestamp = nested_data.get("timestamp")
+            
+            
 
-            # Validate raw_value
-            try:
-                raw_value_float = float(raw_value)
-            except (ValueError, TypeError) as e:
-                _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
-                self._state = "Error"
-                self._attributes = {"error": f"Invalid raw value: {raw_value}"}
-                return
+                
+            # Set prevalue on error #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
+            if error_value.lower() != "no error": # error occured
+                _LOGGER.warning(f"Error detected, setting prevalue: {error_value}")
+                
+                try:
+                    raw_value_float = float(raw_value)
+                except (ValueError, TypeError) as e:
+                    _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
+                    self._state = "Error"
+                    self._attributes = {"error": f"Invalid raw value: {raw_value}"}
+                    # raw_value_float = 0
+                    #return
+                try:
+                    # if raw_value_float < float(pre):
+                        # prevalue = round(raw_value_float)
+                    # else:
+                        # prevalue = round(float(pre))
+                    raw_value_float = round(float(pre))
+                    prevalue = round(float(pre))
+                    prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
+                    async with session.get(prevalue_url) as prevalue_response:
+                        prevalue_response.raise_for_status()
+                        data = await prevalue_response.text()
+                except Exception as e:
+                    _LOGGER.error(f"Failed to set prevalue: {e}")
+            else: # no error
+            
+                # Validate raw_value
+                try:
+                    raw_value_float = float(raw_value)
+                except (ValueError, TypeError) as e:
+                    _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
+                    self._state = "Error"
+                    self._attributes = {"error": f"Invalid raw value: {raw_value}"}
+                    return
+            
 
             # Skip if the new value is not greater than the last recorded value
             if self._last_raw_value is not None and raw_value_float <= self._last_raw_value:
@@ -246,20 +277,7 @@ class MeterCollectorSensor(Entity):
             self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
 
-            # Set prevalue on error #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
-            if error_value.lower() != "no error":
-                _LOGGER.warning(f"Error detected: {error_value}")
-                try:
-                    if raw_value_float < float(pre):
-                        prevalue = round(raw_value_float)
-                    else:
-                        prevalue = round(float(pre))
-                    prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
-                    async with session.get(prevalue_url) as prevalue_response:
-                        prevalue_response.raise_for_status()
-                        data = await prevalue_response.text()
-                except Exception as e:
-                    _LOGGER.error(f"Failed to set prevalue: {e}")
+
 
         except Exception as e:
             _LOGGER.error(f"Unexpected error during update: {e}")
