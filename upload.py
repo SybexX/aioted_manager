@@ -28,28 +28,36 @@ def create_zip_file(image_dir, zip_dir, instance_name):
         for root, _, files in os.walk(image_dir):
             for file in files:
                 file_path = os.path.join(root, file)
-                zipf.write(file_path, os.path.basename(file_path))
+                zipf.write(file_path, os.path.relpath(file_path, image_dir)) # Use os.path.relpath to only include the filename
 
     _LOGGER.info(f"Created zip file: {zip_filename}")
     return zip_filename
 
-async def upload_zip_file(hass, zip_file_path, upload_url, api_key):
+async def upload_zip_file(hass, zip_file_path, upload_url, api_key, instance_name):
+    """Uploads a zip file to the specified URL with retry logic."""
     retries = 0
+    headers = {
+        "X-API-Key": api_key,
+        "instance_name": instance_name,
+    }
     while retries < MAX_RETRIES:
         try:
             session = async_get_clientsession(hass)
-            async with session.post(upload_url, data=data) as response:
-                if response.status == 200:
-                    text = await response.text()
-                    if "OK" not in text:
-                        _LOGGER.error(f"Upload failed: Server responded with {text}")
-                        raise ValueError(f"Server response: {text}")
-                    _LOGGER.info(f"Uploaded {zip_file_path} successfully.")
-                    return True
-                else:
-                    response_text = await response.text()
-                    _LOGGER.error(f"Upload failed with status {response.status}: {response_text}")
-                    raise aiohttp.ClientResponseError(response.request_info, response.history, status=response.status)
+            with open(zip_file_path, "rb") as f:
+                data = aiohttp.FormData()
+                data.add_field("file", f, filename=os.path.basename(zip_file_path))
+                async with session.post(upload_url, data=data, headers=headers) as response:
+                    if response.status == 200:
+                        text = await response.text()
+                        if "OK" not in text:
+                            _LOGGER.error(f"Upload failed: Server responded with {text}")
+                            raise ValueError(f"Server response: {text}")
+                        _LOGGER.info(f"Uploaded {zip_file_path} successfully.")
+                        return True
+                    else:
+                        response_text = await response.text()
+                        _LOGGER.error(f"Upload failed with status {response.status}: {response_text}")
+                        raise aiohttp.ClientResponseError(response.request_info, response.history, status=response.status)
         except (aiohttp.ClientError, ValueError, aiohttp.ClientResponseError) as e:
             _LOGGER.error(f"Attempt {retries + 1}/{MAX_RETRIES} failed to upload {zip_file_path}: {str(e)}")
             retries += 1
@@ -60,6 +68,9 @@ async def upload_zip_file(hass, zip_file_path, upload_url, api_key):
     return False
 
 async def daily_upload_task(hass, www_dir, upload_url, api_key, instance_name):
+    """
+    Performs the daily upload task: zips images and uploads the zip file.
+    """
     zip_dir = os.path.join(www_dir, "zip")
     try:
         # Step 1: Create the zip file in an executor thread
@@ -68,7 +79,7 @@ async def daily_upload_task(hass, www_dir, upload_url, api_key, instance_name):
         )
 
         # Step 2: Upload the zip file
-        upload_success = await upload_zip_file(hass, zip_file_path, upload_url, api_key)
+        upload_success = await upload_zip_file(hass, zip_file_path, upload_url, api_key, instance_name)
 
         # Clean up the zip file after upload only if successful
         if upload_success:
