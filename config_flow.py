@@ -37,6 +37,8 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if scan_interval <= 0:
                 errors["scan_interval"] = "invalid_scan_interval"
                 _LOGGER.error(f"Invalid scan interval: {scan_interval}")
+            else:
+                _LOGGER.debug(f"Valid scan interval received : {scan_interval}")
 
             # If no errors, create the config entry
             if not errors:
@@ -74,8 +76,10 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug(f"Validating IP address: {ip}")
         try:
             ip_address(ip)
+            _LOGGER.debug(f"IP address is valid: {ip}")
             return True
         except ValueError:
+            _LOGGER.warning(f"IP address is invalid: {ip}")
             return False
 
 
@@ -102,6 +106,8 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
             if scan_interval <= 0:
                 errors["scan_interval"] = "invalid_scan_interval"
                 _LOGGER.error(f"Invalid scan interval: {scan_interval}")
+            else:
+                _LOGGER.debug(f"Valid scan interval received : {scan_interval}")
 
             if not errors:
                 _LOGGER.debug("Validation successful, creating option config entry")
@@ -110,6 +116,7 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, options=new_options
                 )
+                _LOGGER.debug(f"update entry with new options : {new_options}")
                 await self.hass.config_entries.async_reload(self.config_entry.entry_id)
                 return self.async_create_entry(title="", data={})
             else:
@@ -139,8 +146,11 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
 
     def _is_valid_ip(self, ip_str: str) -> bool:
         """Check if the provided string is a valid IPv4 or IPv6 address."""
+        _LOGGER.debug(f"Validating IP address: {ip_str}")
         try:
             ip_address(ip_str)
+            _LOGGER.debug(f"IP address is valid: {ip_str}")
             return True
         except ValueError:
+            _LOGGER.warning(f"IP address is invalid: {ip_str}")
             return False

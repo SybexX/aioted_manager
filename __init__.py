@@ -142,9 +142,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN]["cancel_upload_task"] = {}
 
     # Schedule the daily upload task if enabled
-    if entry.data.get("enable_upload", False):
-        upload_url = entry.data.get("upload_url")
-        api_key = entry.data.get("api_key")
+    if entry.options.get("enable_upload", entry.data.get("enable_upload", False)): # check in options first, after in data
+        upload_url = entry.options.get("upload_url", entry.data.get("upload_url")) # check in options first, after in data
+        api_key = entry.options.get("api_key", entry.data.get("api_key")) # check in options first, after in data
 
         async def daily_upload_wrapper(_):
             """Wrapper function to call the daily upload task."""
@@ -166,6 +166,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         remove_listener = async_track_time_change(hass, daily_upload_wrapper, hour=0, minute=0, second=0)
         hass.data[DOMAIN]["cancel_upload_task"][instance_name] = remove_listener
         _LOGGER.info(f"Scheduled daily upload task at midnight for instance : {instance_name}")
+    else:
+        _LOGGER.debug(f"upload is disable for {instance_name}")
 
     _LOGGER.debug(f"Completed setup for config entry {entry.entry_id}")
     return True

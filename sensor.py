@@ -11,6 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Meter Collector sensor from a config entry."""
+    _LOGGER.debug("Setting up sensor entry")
     ip_address = config_entry.data["ip"]
     json_url = f"http://{ip_address}/{API_json}"
     image_url = f"http://{ip_address}/{API_img_alg}"
@@ -27,6 +28,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
+    _LOGGER.debug(f"Created www directory: {www_dir}")
 
     sensor = MeterCollectorSensor(
         hass=hass,
@@ -46,17 +48,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         config_entry=config_entry
     )
     async_add_entities([sensor])
+    _LOGGER.debug(f"Added sensor entity for instance: {instance_name}")
 
     # Store the sensor in hass.data for service access
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
+        _LOGGER.debug(f"Initialized hass.data[{DOMAIN}]")
     hass.data[DOMAIN][instance_name] = sensor
+    _LOGGER.debug(f"Stored sensor in hass.data[{DOMAIN}][{instance_name}]")
 
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
     def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images , device_class, unit_of_measurement, enable_upload, upload_url, api_key, config_entry):
         """Initialize the sensor."""
+        _LOGGER.debug(f"Initializing sensor for instance: {instance_name}")
         self._hass = hass
         self._ip_address = ip_address
         self._json_url = json_url
@@ -80,6 +86,7 @@ class MeterCollectorSensor(Entity):
         self.api_key = api_key
         self._config_entry = config_entry
         self._enabled = True  # Default to enabled
+        _LOGGER.debug(f"Sensor initialized for instance: {instance_name}")
 
     @property
     def name(self):
@@ -118,6 +125,7 @@ class MeterCollectorSensor(Entity):
 
     async def async_update(self):
         """Fetch new state data for the sensor."""
+        _LOGGER.debug(f"Starting async_update for instance: {self._instance_name}")
         try:
             # Check if device is enabled
             if not self._enabled:
@@ -128,14 +136,17 @@ class MeterCollectorSensor(Entity):
             if self._last_update and (datetime.now() - self._last_update) < self._scan_interval:
                 _LOGGER.debug("Skipping update due to throttle")
                 return
+            _LOGGER.debug(f"Updating sensor : {self._instance_name}")
 
             session = async_get_clientsession(self._hass)
 
             # Fetch JSON data
             try:
+                _LOGGER.debug(f"Fetching JSON data from {self._json_url}")
                 async with session.get(self._json_url) as response:
                     response.raise_for_status()
                     data = await response.json()
+                _LOGGER.debug(f"Received JSON data: {data}")
             except Exception as e:
                 _LOGGER.error(f"Failed to fetch JSON data from {self._json_url}: {e}")
                 self._state = "Error"
@@ -165,6 +176,7 @@ class MeterCollectorSensor(Entity):
             error_value = nested_data.get("error") #, "no error")
             rate = nested_data.get("rate")
             timestamp = nested_data.get("timestamp")
+            _LOGGER.debug(f"Extracted values: value={value}, raw_value={raw_value}, pre={pre}, error_value={error_value}, rate={rate}, timestamp={timestamp}")
             
             
 
@@ -189,9 +201,11 @@ class MeterCollectorSensor(Entity):
                     raw_value_float = round(float(pre))
                     prevalue = round(float(pre))
                     prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
+                    _LOGGER.debug(f"Setting prevalue with URL: {prevalue_url}")
                     async with session.get(prevalue_url) as prevalue_response:
                         prevalue_response.raise_for_status()
                         data = await prevalue_response.text()
+                    _LOGGER.debug(f"Set prevalue response: {data}")
                 except Exception as e:
                     _LOGGER.error(f"Failed to set prevalue: {e}")
             else: # no error
@@ -218,6 +232,7 @@ class MeterCollectorSensor(Entity):
             if self.log_as_csv:
                 csv_file = os.path.join(self._www_dir, "log.csv")
                 try:
+                    _LOGGER.debug(f"Writing to CSV file: {csv_file}")
                     await self._hass.async_add_executor_job(
                         self._write_csv,
                         csv_file,
@@ -229,12 +244,14 @@ class MeterCollectorSensor(Entity):
                         rate,
                         timestamp
                     )
+                    _LOGGER.debug(f"Successfully wrote to CSV file: {csv_file}")
                 except Exception as e:
                     _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
 
             # Save image (Move to executor)
             if self.save_images:
                 try:
+                    _LOGGER.debug(f"Fetching image from {self._image_url}")
                     # Fetch image from the remote URL
                     async with session.get(self._image_url) as image_response:
                         image_response.raise_for_status()
@@ -248,10 +265,11 @@ class MeterCollectorSensor(Entity):
                     else: #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
                         self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
                         image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}_err.jpg")
-
+                    _LOGGER.debug(f"Saving image to: {image_file}")
                     # Save the image
                     await self._hass.async_add_executor_job(self._write_image, image_file, image_data) #current image
                     await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data) #latest (to simple image entities access)
+                    _LOGGER.debug(f"Successfully saved image to: {image_file}")
                 except Exception as e:
                     _LOGGER.error(f"Failed to fetch or save image: {e}")
 
@@ -277,6 +295,7 @@ class MeterCollectorSensor(Entity):
             self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
 
+            _LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
 
 
         except Exception as e:

@@ -7,6 +7,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Reboot Button from a config entry."""
+    _LOGGER.debug(f"Setting up button for instance: {config_entry.data['instance_name']}")
     ip_address = config_entry.data["ip"]
     instance_name = config_entry.data["instance_name"]
 
@@ -17,12 +18,14 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         instance_name=instance_name
     )
     async_add_entities([button])
+    _LOGGER.debug(f"Added button entity for instance: {instance_name}")
 
 class RebootButton(ButtonEntity):
     """Representation of a Reboot Button."""
 
     def __init__(self, hass, ip_address, instance_name):
         """Initialize the button."""
+        _LOGGER.debug(f"Initializing reboot button for instance: {instance_name}")
         self._hass = hass
         self._ip_address = ip_address
         self._instance_name = instance_name
@@ -31,6 +34,7 @@ class RebootButton(ButtonEntity):
         self._attr_device_class = "restart"
         self._attr_icon = "mdi:restart"
         self._is_rebooting = False  # Add a new state to check if rebooting
+        _LOGGER.debug(f"Reboot button initialized for instance: {instance_name}")
 
     @property
     def url(self):
@@ -44,19 +48,20 @@ class RebootButton(ButtonEntity):
 
     async def async_press(self):
         """Handle the button press."""
+        _LOGGER.debug(f"Reboot button pressed for instance: {self._instance_name}")
         self._is_rebooting = True
         self.async_write_ha_state()  # force update on button
         session = async_get_clientsession(self._hass)
 
         try:
+            _LOGGER.debug(f"Sending reboot request to {self.url}")
             # Example: Use GET instead of POST if required
             async with session.get(self.url) as response:
-                if response.status == 200:
-                    _LOGGER.info(f"Reboot request successful for {self._instance_name}")
-                else:
-                    _LOGGER.error(f"Failed to reboot {self._instance_name}. Status code: {response.status}")
+                response.raise_for_status()  # Raise an exception for bad status codes
+                _LOGGER.info(f"Reboot request successful for {self._instance_name}. Status code: {response.status}")
         except Exception as e:
             _LOGGER.error(f"An error occurred while rebooting {self._instance_name}: {e}")
         finally:
             self._is_rebooting = False
             self.async_write_ha_state()  # force update on button
+            _LOGGER.debug(f"Reboot process finished for instance: {self._instance_name}")
