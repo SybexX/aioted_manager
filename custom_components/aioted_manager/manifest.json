@@ -1,12 +1,12 @@
 {
   "domain": "aioted_manager",
-  "name": "AIOTED manager",
-  "version": "1.4",
+  "name": "AIOTED Manager",
+  "version": "1.5",
+  "config_flow": true,
   "documentation": "https://github.com/nliaudat/aioted_manager",
   "issue_tracker": "https://github.com/nliaudat/aioted_manager/issues",
   "dependencies": [],
   "iot_class": "local_polling",
   "codeowners": ["@nliaudat"],
-  "requirements": [],
-  "config_flow": true
+  "requirements": []
 }
