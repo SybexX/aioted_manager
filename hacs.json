@@ -1,18 +1,8 @@
 {
     "name": "AI on the Edge Device (AIOTED) Integration",
     "render_readme": true,
-    "filename": "aioted_manager",
-    "country": ["CH"],
-    "iot_class": "local_polling",
     "homeassistant": "2025.0.0",
     "content_in_root": false,
-    "zip_release": false,
-    "domains": [
-      "sensor",
-      "button"
-    ],
-    "categories": [
-      "Integration"
-    ]
-  }
+    "zip_release": false
+}
   
