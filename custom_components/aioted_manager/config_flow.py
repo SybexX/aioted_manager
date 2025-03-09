@@ -9,6 +9,10 @@ from typing import Any
 
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, SHARED_SCHEMA, DEVICE_CLASSES, UNIT_OF_MEASUREMENTS
 
+from homeassistant.helpers import config_validation as cv
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(vol.Schema({}))
+
 _LOGGER = logging.getLogger(__name__)
 
 
