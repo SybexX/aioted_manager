@@ -1,0 +1,24 @@
+{
+"services": {
+    "collect_data": {
+        "name": "Collect Data",
+        "description": "Collect data from the AIOTED device.",
+        "fields": {
+          "instance_name": {
+            "name": "Instance Name",
+            "description": "The name of the AIOTED instance."
+            }
+        }
+    },
+    "upload_data": {
+        "name": "Upload Data",
+        "description": "Upload data to a remote server.",
+        "fields": {
+          "instance_name": {
+            "name": "Instance Name",
+            "description": "The name of the AIOTED instance."
+            }
+        }
+    }
+  }
+}
