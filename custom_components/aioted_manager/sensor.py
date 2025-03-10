@@ -237,7 +237,8 @@ class MeterCollectorSensor(Entity):
                 _LOGGER.debug(
                     f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}"
                 )
-                #self._last_update = datetime.now()
+                #reset timer for next scan_interval
+                self._last_update = datetime.now()
                 return
 
             # Get the current Unix epoch time
