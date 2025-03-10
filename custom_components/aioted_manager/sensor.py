@@ -125,7 +125,7 @@ class MeterCollectorSensor(Entity):
 
     async def async_update(self):
         """Fetch new state data for the sensor."""
-        _LOGGER.debug(f"Starting async_update for instance: {self._instance_name}")
+        # _LOGGER.debug(f"Starting async_update for instance: {self._instance_name}")
         try:
             # Check if device is enabled
             if not self._enabled:
@@ -133,9 +133,17 @@ class MeterCollectorSensor(Entity):
                 return
 
             # Throttle updates based on scan_interval
-            if self._last_update and (datetime.now() - self._last_update) < self._scan_interval:
-                _LOGGER.debug("Skipping update due to throttle")
-                return
+            if self._last_update is not None:
+                time_since_last_update = datetime.now() - self._last_update
+                if time_since_last_update < self._scan_interval:
+                    remaining_time = self._scan_interval - time_since_last_update
+                    _LOGGER.debug(
+                        f"Skipping update for {self._instance_name} due to throttle, last update was {self._last_update}, "
+                        f"scan_interval is {self._scan_interval}. "
+                        f"Remaining: {remaining_time.total_seconds():.0f} sec"
+                    )
+                    return
+            
             _LOGGER.debug(f"Updating sensor : {self._instance_name}")
 
             session = async_get_clientsession(self._hass)
