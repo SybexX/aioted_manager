@@ -1,4 +1,6 @@
-# AI on the Edge Device (AIOTED) Meter Collector Integration for Home Assistant
+# AI on the Edge Device (AIOTED) Meter Collector Integration for Home Assistant 
+
+## working, but still beta (the image upload is not functionnal at that time)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Validate with hassfest](https://github.com/nliaudat/aioted_manager/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/nliaudat/aioted_manager/actions/workflows/hassfest.yaml)
