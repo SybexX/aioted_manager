@@ -138,10 +138,11 @@ class MeterCollectorSensor(Entity):
                 if time_since_last_update < self._scan_interval:
                     remaining_time = self._scan_interval - time_since_last_update
                     _LOGGER.debug(
-                        f"Skipping update for {self._instance_name} due to throttle, last update was {self._last_update}, "
+                        f"Skipping update for '{self._instance_name}' due to throttle, last update was {self._last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}, "
                         f"scan_interval is {self._scan_interval}. "
                         f"Remaining: {remaining_time.total_seconds():.0f} sec"
                     )
+                    self._last_update = datetime.now()
                     return
             
             _LOGGER.debug(f"Updating sensor : {self._instance_name}")
@@ -189,7 +190,8 @@ class MeterCollectorSensor(Entity):
             
 
                 
-            # Set prevalue on error #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
+            # Set prevalue on error 
+            ## TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
             if error_value.lower() != "no error": # error occured
                 _LOGGER.warning(f"Error detected, setting prevalue: {error_value}")
                 
@@ -200,6 +202,7 @@ class MeterCollectorSensor(Entity):
                     self._state = "Error"
                     self._attributes = {"error": f"Invalid raw value: {raw_value}"}
                     # raw_value_float = 0
+                    self._last_update = datetime.now()
                     #return
                 try:
                     # if raw_value_float < float(pre):
@@ -216,21 +219,29 @@ class MeterCollectorSensor(Entity):
                     _LOGGER.debug(f"Set prevalue response: {data}")
                 except Exception as e:
                     _LOGGER.error(f"Failed to set prevalue: {e}")
+                    self._state = "Error"
+                    self._attributes = {"error": f"Failed to set prevalue: {e}"}
+                finally:
+                    self._last_update = datetime.now()
+                    return
             else: # no error
             
                 # Validate raw_value
                 try:
                     raw_value_float = float(raw_value)
+                    self._last_update = datetime.now()
                 except (ValueError, TypeError) as e:
                     _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
                     self._state = "Error"
                     self._attributes = {"error": f"Invalid raw value: {raw_value}"}
+                    self._last_update = datetime.now()
                     return
             
 
             # Skip if the new value is not greater than the last recorded value
             if self._last_raw_value is not None and raw_value_float <= self._last_raw_value:
                 _LOGGER.debug(f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}")
+                self._last_update = datetime.now()
                 return
 
             # Get the current Unix epoch time
@@ -300,17 +311,19 @@ class MeterCollectorSensor(Entity):
             }
 
             # Record the last update time and last raw value
-            self._last_update = datetime.now()
+            #self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
 
-            _LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
+            #_LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
 
 
         except Exception as e:
             _LOGGER.error(f"Unexpected error during update: {e}")
             self._state = "Error"
-            self._attributes = {"error": str(e)}
-
+            self._attributes = {"error": str(e)}        
+        finally:
+            self._last_update = datetime.now()
+            _LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
     def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
         """Helper method to write all values to a CSV file in an executor thread."""
         try:
