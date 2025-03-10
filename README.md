@@ -1,6 +1,8 @@
 # AI on the Edge Device (AIOTED) Meter Collector Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![Validate with hassfest](https://github.com/nliaudat/aioted_manager/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/nliaudat/aioted_manager/actions/workflows/hassfest.yaml)
+[![Validate Integration with HACS](https://github.com/nliaudat/aioted_manager/actions/workflows/validate.yaml/badge.svg)](https://github.com/nliaudat/aioted_manager/actions/workflows/validate.yaml)
 
 This custom integration allows you to seamlessly integrate and manage your [AI on the Edge Device](https://jomjol.github.io/AI-on-the-edge-device-docs/) (AIOTED) water, gas, or electricity meter readers directly with Home Assistant. It eliminates the need for an MQTT gateway, offering a more streamlined and direct integration. It provides sensor data, image capture, and reboot functionality, along with advanced features like image upload and CSV logging.
 
