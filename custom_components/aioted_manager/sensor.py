@@ -323,7 +323,7 @@ class MeterCollectorSensor(Entity):
             self._attributes = {"error": str(e)}        
         finally:
             self._last_update = datetime.now()
-            _LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
+            #_LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
     def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
         """Helper method to write all values to a CSV file in an executor thread."""
         try:
