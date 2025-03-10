@@ -125,11 +125,11 @@ class MeterCollectorSensor(Entity):
 
     async def async_update(self):
         """Fetch new state data for the sensor."""
-        # _LOGGER.debug(f"Starting async_update for instance: {self._instance_name}")
         try:
             # Check if device is enabled
             if not self._enabled:
                 _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
+                #self._last_update = datetime.now()
                 return
 
             # Throttle updates based on scan_interval
@@ -138,13 +138,13 @@ class MeterCollectorSensor(Entity):
                 if time_since_last_update < self._scan_interval:
                     remaining_time = self._scan_interval - time_since_last_update
                     _LOGGER.debug(
-                        f"Skipping update for '{self._instance_name}' due to throttle, last update was {self._last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}, "
+                        f"Skipping update for '{self._instance_name}' due to throttle, last update was {self._last_update.strftime('%Y-%m-%d %H:%M:%S')}, "
                         f"scan_interval is {self._scan_interval}. "
                         f"Remaining: {remaining_time.total_seconds():.0f} sec"
                     )
-                    self._last_update = datetime.now()
+                    #self._last_update = datetime.now()
                     return
-            
+
             _LOGGER.debug(f"Updating sensor : {self._instance_name}")
 
             session = async_get_clientsession(self._hass)
@@ -160,6 +160,7 @@ class MeterCollectorSensor(Entity):
                 _LOGGER.error(f"Failed to fetch JSON data from {self._json_url}: {e}")
                 self._state = "Error"
                 self._attributes = {"error": f"Failed to fetch JSON data: {e}"}
+                #self._last_update = datetime.now()
                 return
 
             # Validate JSON data
@@ -167,6 +168,7 @@ class MeterCollectorSensor(Entity):
                 _LOGGER.error(f"Invalid JSON structure: Expected a dictionary, got {type(data)}")
                 self._state = "Error"
                 self._attributes = {"error": "Invalid JSON structure"}
+                #self._last_update = datetime.now()
                 return
 
             # Get the first (and only) top-level key
@@ -175,6 +177,7 @@ class MeterCollectorSensor(Entity):
                 _LOGGER.error("No top-level key found in JSON data")
                 self._state = "Error"
                 self._attributes = {"error": "No top-level key found in JSON data"}
+                #self._last_update = datetime.now()
                 return
 
             # Extract values from the nested object
@@ -182,33 +185,28 @@ class MeterCollectorSensor(Entity):
             value = nested_data.get("value")
             raw_value = nested_data.get("raw")
             pre = nested_data.get("pre")
-            error_value = nested_data.get("error") #, "no error")
+            error_value = nested_data.get("error")  # , "no error")
             rate = nested_data.get("rate")
             timestamp = nested_data.get("timestamp")
-            _LOGGER.debug(f"Extracted values: value={value}, raw_value={raw_value}, pre={pre}, error_value={error_value}, rate={rate}, timestamp={timestamp}")
-            
-            
+            _LOGGER.debug(
+                f"Extracted values: value={value}, raw_value={raw_value}, pre={pre}, error_value={error_value}, rate={rate}, timestamp={timestamp}"
+            )
 
-                
-            # Set prevalue on error 
+            # Set prevalue on error
             ## TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
-            if error_value.lower() != "no error": # error occured
+            if error_value.lower() != "no error":  # error occured
                 _LOGGER.warning(f"Error detected, setting prevalue: {error_value}")
-                
+
                 try:
                     raw_value_float = float(raw_value)
                 except (ValueError, TypeError) as e:
                     _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
                     self._state = "Error"
                     self._attributes = {"error": f"Invalid raw value: {raw_value}"}
-                    # raw_value_float = 0
-                    self._last_update = datetime.now()
-                    #return
+                    #self._last_update = datetime.now()
+                    return
+
                 try:
-                    # if raw_value_float < float(pre):
-                        # prevalue = round(raw_value_float)
-                    # else:
-                        # prevalue = round(float(pre))
                     raw_value_float = round(float(pre))
                     prevalue = round(float(pre))
                     prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
@@ -221,27 +219,25 @@ class MeterCollectorSensor(Entity):
                     _LOGGER.error(f"Failed to set prevalue: {e}")
                     self._state = "Error"
                     self._attributes = {"error": f"Failed to set prevalue: {e}"}
-                finally:
-                    self._last_update = datetime.now()
+                    #self._last_update = datetime.now()
                     return
-            else: # no error
-            
-                # Validate raw_value
-                try:
-                    raw_value_float = float(raw_value)
-                    self._last_update = datetime.now()
-                except (ValueError, TypeError) as e:
-                    _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
-                    self._state = "Error"
-                    self._attributes = {"error": f"Invalid raw value: {raw_value}"}
-                    self._last_update = datetime.now()
-                    return
-            
+
+            # Validate raw_value
+            try:
+                raw_value_float = float(raw_value)
+            except (ValueError, TypeError) as e:
+                _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
+                self._state = "Error"
+                self._attributes = {"error": f"Invalid raw value: {raw_value}"}
+                #self._last_update = datetime.now()
+                return
 
             # Skip if the new value is not greater than the last recorded value
             if self._last_raw_value is not None and raw_value_float <= self._last_raw_value:
-                _LOGGER.debug(f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}")
-                self._last_update = datetime.now()
+                _LOGGER.debug(
+                    f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}"
+                )
+                #self._last_update = datetime.now()
                 return
 
             # Get the current Unix epoch time
@@ -261,7 +257,7 @@ class MeterCollectorSensor(Entity):
                         pre,
                         error_value,
                         rate,
-                        timestamp
+                        timestamp,
                     )
                     _LOGGER.debug(f"Successfully wrote to CSV file: {csv_file}")
                 except Exception as e:
@@ -277,17 +273,18 @@ class MeterCollectorSensor(Entity):
                         image_data = await image_response.read()
 
                     # Determine image file name
-                    # image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
                     if error_value == "no error":
                         self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}.jpg"
                         image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}.jpg")
-                    else: #TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
+                    else:  # TODO : implement "Neg. Rate - Read" and "Rate too high - Read"
                         self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{raw_value}_err.jpg"
                         image_file = os.path.join(self._www_dir, f"{unix_epoch}_{raw_value}_err.jpg")
                     _LOGGER.debug(f"Saving image to: {image_file}")
                     # Save the image
-                    await self._hass.async_add_executor_job(self._write_image, image_file, image_data) #current image
-                    await self._hass.async_add_executor_job(self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data) #latest (to simple image entities access)
+                    await self._hass.async_add_executor_job(self._write_image, image_file, image_data)  # current image
+                    await self._hass.async_add_executor_job(
+                        self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data
+                    )  # latest (to simple image entities access)
                     _LOGGER.debug(f"Successfully saved image to: {image_file}")
                 except Exception as e:
                     _LOGGER.error(f"Failed to fetch or save image: {e}")
@@ -311,19 +308,18 @@ class MeterCollectorSensor(Entity):
             }
 
             # Record the last update time and last raw value
-            #self._last_update = datetime.now()
             self._last_raw_value = raw_value_float
-
-            #_LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
-
+            self._last_update = datetime.now()
 
         except Exception as e:
             _LOGGER.error(f"Unexpected error during update: {e}")
             self._state = "Error"
-            self._attributes = {"error": str(e)}        
-        finally:
-            self._last_update = datetime.now()
+            self._attributes = {"error": str(e)}
+        #finally:
+            #self._last_update = datetime.now()
             #_LOGGER.debug(f"Finished async_update for instance: {self._instance_name}")
+
+
     def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
         """Helper method to write all values to a CSV file in an executor thread."""
         try:
