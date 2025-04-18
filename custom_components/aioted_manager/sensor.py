@@ -1,3 +1,4 @@
+# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\sensor.py
 import logging
 import os
 import csv
@@ -132,43 +133,68 @@ class MeterCollectorSensor(Entity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
+        # This property now correctly reflects the internal _enabled state
         return self._enabled
 
     async def _async_update(self):
         """Fetch new state data for the sensor."""
-        if not self._enabled:
-            _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
-            return
+        if not self._enabled and self._state is not None: # Check if already disabled and has a state to avoid unnecessary logs
+             _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
+             return
+
+        # Assume available until proven otherwise in this update cycle
+        # self._enabled = True # Removed this line - let's only set to False on error
 
         try:
             data = await self._fetch_json_data()
             if not data:
-                self.available = False
+                # Fetch failed, mark as unavailable if not already
+                if self._enabled:
+                    _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to fetch failure.")
+                    self._enabled = False
                 return
 
             values = self._extract_values(data)
-            if not values or values.get("error"):
-                self.available = False
+            if not values:
+                # Extraction failed, mark as unavailable if not already
+                if self._enabled:
+                    _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to data extraction failure.")
+                    self._enabled = False
                 return
 
+            # If we got this far, the connection and basic data structure are okay. Mark as available.
+            if not self._enabled:
+                 _LOGGER.info(f"Marking sensor {self._instance_name} as available again.")
+                 self._enabled = True
+
             if not self._validate_raw_value(values["raw_value"]):
+                # Validation failed, mark as unavailable
+                # Error message already logged in _validate_raw_value
+                self._enabled = False
                 return
 
             if self._should_skip_update(values["raw_value"]):
+                # Not an error, just skipping update. Availability remains unchanged.
                 return
 
             # Handle prevalue setting on error
             if values["error_value"].lower() != "no error":
                 await self._set_prevalue_on_error(values["pre"])
+                # Note: We might still consider the sensor available even if there's a reading error,
+                # as it's still communicating. If not desired, add self._enabled = False here.
 
             await self._save_data(values)
+
             self._update_state(values)
 
         except Exception as e:
-            _LOGGER.error(f"Unexpected error during update: {e}")
+            _LOGGER.error(f"Unexpected error during update for {self._instance_name}: {e}", exc_info=True) # Add exc_info for full traceback
             self._state = "Error"
             self._attributes = {"error": str(e)}
-            self.available = False
+            # Mark as unavailable on unexpected error
+            if self._enabled:
+                _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to unexpected error.")
+                self._enabled = False
 
     async def _fetch_json_data(self):
         """Fetch JSON data from the API."""
@@ -178,24 +204,27 @@ class MeterCollectorSensor(Entity):
                 response.raise_for_status()
                 return await response.json()
         except Exception as e:
-            _LOGGER.error(f"Failed to fetch JSON data from {self._json_url}: {e}")
+            _LOGGER.error(f"Failed to fetch JSON data from {self._json_url} for {self._instance_name}: {e}")
             self._state = "Error"
             self._attributes = {"error": f"Failed to fetch JSON data: {e}"}
+            # No need to set self._enabled here, the caller (_async_update) handles it
             return None
 
     def _extract_values(self, data):
         """Extract values from the JSON data."""
         if not data or not isinstance(data, dict):
-            _LOGGER.error(f"Invalid JSON structure: Expected a dictionary, got {type(data)}")
+            _LOGGER.error(f"Invalid JSON structure for {self._instance_name}: Expected a dictionary, got {type(data)}")
             self._state = "Error"
             self._attributes = {"error": "Invalid JSON structure"}
+            # No need to set self._enabled here, the caller (_async_update) handles it
             return None
 
         top_level_key = next(iter(data.keys()), None)
         if not top_level_key:
-            _LOGGER.error("No top-level key found in JSON data")
+            _LOGGER.error(f"No top-level key found in JSON data for {self._instance_name}")
             self._state = "Error"
             self._attributes = {"error": "No top-level key found in JSON data"}
+            # No need to set self._enabled here, the caller (_async_update) handles it
             return None
 
         nested_data = data.get(top_level_key, {})
@@ -211,43 +240,54 @@ class MeterCollectorSensor(Entity):
     def _validate_raw_value(self, raw_value):
         """Validate the raw value."""
         try:
-            raw_value_float = float(raw_value)
+            # Attempt conversion to float
+            float(raw_value)
             return True
         except (ValueError, TypeError) as e:
-            _LOGGER.error(f"Invalid raw value received: {raw_value} ({e})")
+            _LOGGER.error(f"Invalid raw value received for {self._instance_name}: {raw_value} ({e})")
             self._state = "Error"
             self._attributes = {"error": f"Invalid raw value: {raw_value}"}
+            # No need to set self._enabled here, the caller (_async_update) handles it
             return False
 
     def _should_skip_update(self, raw_value):
         """Check if the update should be skipped."""
-        raw_value_float = float(raw_value)
-        if self._last_raw_value is not None and raw_value_float <= self._last_raw_value:
-            _LOGGER.debug(f"Skipping update: New value {raw_value} is not greater than last value {self._last_raw_value}")
-            return True
+        try:
+            raw_value_float = float(raw_value)
+            # Check if last_raw_value exists and the new value is not greater
+            if self._last_raw_value is not None and raw_value_float <= self._last_raw_value:
+                _LOGGER.debug(f"Skipping update for {self._instance_name}: New value {raw_value} is not greater than last value {self._last_raw_value}")
+                return True
+        except (ValueError, TypeError):
+             # If raw_value is invalid, validation should have caught it, but handle defensively
+             _LOGGER.warning(f"Could not compare raw value {raw_value} for {self._instance_name}")
+             return False # Don't skip if comparison fails
         return False
 
     async def _set_prevalue_on_error(self, pre):
         """Set the prevalue when an error is detected."""
         try:
             session = async_get_clientsession(self._hass)
+            # Ensure 'pre' is a valid number before formatting the URL
             prevalue = round(float(pre))
             prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
-            _LOGGER.warning(f"Error detected, setting prevalue with URL: {prevalue_url}")
+            _LOGGER.warning(f"Error detected for {self._instance_name}, setting prevalue with URL: {prevalue_url}")
 
             async with session.get(prevalue_url) as prevalue_response:
                 prevalue_response.raise_for_status()
                 response_text = await prevalue_response.text()
-                _LOGGER.debug(f"Set prevalue response: {response_text}")
+                _LOGGER.debug(f"Set prevalue response for {self._instance_name}: {response_text}")
 
         except (ValueError, TypeError) as e:
-            _LOGGER.error(f"Invalid prevalue received: {pre} ({e})")
+            _LOGGER.error(f"Invalid prevalue received for {self._instance_name}: {pre} ({e})")
             self._state = "Error"
             self._attributes = {"error": f"Invalid prevalue: {pre}"}
+            # Consider if this should make the sensor unavailable: self._enabled = False
         except Exception as e:
-            _LOGGER.error(f"Failed to set prevalue: {e}")
+            _LOGGER.error(f"Failed to set prevalue for {self._instance_name}: {e}")
             self._state = "Error"
             self._attributes = {"error": f"Failed to set prevalue: {e}"}
+            # Consider if this should make the sensor unavailable: self._enabled = False
 
     async def _save_data(self, values):
         """Save data to CSV and images."""
@@ -274,51 +314,70 @@ class MeterCollectorSensor(Entity):
                 values["rate"],
                 values["timestamp"],
             )
-            _LOGGER.debug(f"Successfully wrote to CSV file: {csv_file}")
+            _LOGGER.debug(f"Successfully wrote to CSV file for {self._instance_name}: {csv_file}")
         except Exception as e:
-            _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
+            _LOGGER.error(f"Failed to write to CSV file {csv_file} for {self._instance_name}: {e}")
 
     async def _save_image(self, unix_epoch, values):
         """Save image data."""
+        image_file_base = f"{unix_epoch}_{values['raw_value']}"
+        image_file_suffix = "_err.jpg" if values["error_value"] != "no error" else ".jpg"
+        image_filename = f"{image_file_base}{image_file_suffix}"
+        image_file_full_path = os.path.join(self._www_dir, image_filename)
+        latest_image_full_path = os.path.join(self._www_dir, "latest.jpg")
+        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{image_filename}" # Update local path
+
         try:
             session = async_get_clientsession(self._hass)
             async with session.get(self._image_url) as image_response:
                 image_response.raise_for_status()
                 image_data = await image_response.read()
 
-            if values["error_value"] == "no error":
-                self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{values['raw_value']}.jpg"
-                image_file = os.path.join(self._www_dir, f"{unix_epoch}_{values['raw_value']}.jpg")
-            else:
-                self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{unix_epoch}_{values['raw_value']}_err.jpg"
-                image_file = os.path.join(self._www_dir, f"{unix_epoch}_{values['raw_value']}_err.jpg")
+            # Write specific image
+            await self._hass.async_add_executor_job(self._write_image, image_file_full_path, image_data)
+            # Write latest image
+            await self._hass.async_add_executor_job(self._write_image, latest_image_full_path, image_data)
 
-            await self._hass.async_add_executor_job(self._write_image, image_file, image_data)
-            await self._hass.async_add_executor_job(
-                self._write_image, os.path.join(self._www_dir, "latest.jpg"), image_data
-            )
-            _LOGGER.debug(f"Successfully saved image to: {image_file}")
+            _LOGGER.debug(f"Successfully saved image to: {image_file_full_path} for {self._instance_name}")
         except Exception as e:
-            _LOGGER.error(f"Failed to fetch or save image: {e}")
+            _LOGGER.error(f"Failed to fetch or save image for {self._instance_name}: {e}")
+            # Clear the image path attribute on error?
+            # self._latest_image_path = None
 
     def _update_state(self, values):
         """Update the sensor state and attributes."""
-        self._state = values["raw_value"]
-        self._current_raw_value = float(values["raw_value"])
-        self._last_raw_value = self._current_raw_value
+        try:
+            # Ensure raw_value can be converted to float before updating state
+            current_raw_float = float(values["raw_value"])
+            self._state = values["raw_value"] # Keep state as string as received? Or float? Let's keep as received for now.
+            self._current_raw_value = current_raw_float
+            self._last_raw_value = self._current_raw_value # Update last known good value
 
-        self._attributes = {
-            "value": values["value"],
-            "raw": values["raw_value"],
-            "pre": values["pre"],
-            "error": values["error_value"],
-            "rate": values["rate"],
-            "timestamp": values["timestamp"],
-            "last_updated": datetime.now().isoformat(),
-            "last_raw_value": self._last_raw_value,
-            "current_raw_value": self._current_raw_value,
-            "entity_picture": self._latest_image_path,
-        }
+            self._attributes = {
+                "value": values["value"],
+                "raw": values["raw_value"],
+                "pre": values["pre"],
+                "error": values["error_value"],
+                "rate": values["rate"],
+                "timestamp": values["timestamp"],
+                "last_updated": datetime.now().isoformat(),
+                "last_raw_value": self._last_raw_value,
+                "current_raw_value": self._current_raw_value,
+                "entity_picture": self._latest_image_path, # Use the updated path
+            }
+            # Ensure sensor is marked available if state update is successful
+            if not self._enabled:
+                _LOGGER.info(f"Marking sensor {self._instance_name} as available after successful state update.")
+                self._enabled = True
+
+        except (ValueError, TypeError) as e:
+            _LOGGER.error(f"Failed to update state for {self._instance_name} due to invalid raw value '{values['raw_value']}': {e}")
+            self._state = "Error"
+            self._attributes["error"] = f"Invalid raw value during state update: {values['raw_value']}"
+            if self._enabled:
+                 _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to state update failure.")
+                 self._enabled = False
+
 
     def _write_csv(self, csv_file, unix_epoch, value, raw_value, pre, error_value, rate, timestamp):
         """Helper method to write all values to a CSV file in an executor thread."""
@@ -357,3 +416,4 @@ class MeterCollectorSensor(Entity):
                 imgfile.write(image_data)
         except Exception as e:
             _LOGGER.error(f"Failed to write image to file {image_file}: {e}")
+
