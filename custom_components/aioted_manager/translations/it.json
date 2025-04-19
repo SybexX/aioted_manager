@@ -1,0 +1,76 @@
+{
+  "services": {
+    "collect_data": {
+      "name": "Raccogli Dati",
+      "description": "Attiva manualmente la raccolta dati dal dispositivo AIOTED.",
+      "fields": {
+        "instance_name": {
+          "name": "Nome Istanza",
+          "description": "Il nome dell'istanza AIOTED da cui raccogliere i dati."
+        }
+      }
+    },
+    "upload_data": {
+      "name": "Carica Dati",
+      "description": "Attiva manualmente il caricamento dei dati raccolti (immagini/log) sul server remoto.",
+      "fields": {
+        "instance_name": {
+          "name": "Nome Istanza",
+          "description": "Il nome dell'istanza AIOTED i cui dati devono essere caricati."
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurazione Gestore AIOTED",
+        "description": "Configura la connessione e le impostazioni per il tuo dispositivo AIOTED.",
+        "data": {
+          "instance_name": "Nome Istanza (Identificatore Univoco)",
+          "ip": "Indirizzo IP",
+          "device_class": "Classe Dispositivo (es: acqua, gas, energia)",
+          "unit_of_measurement": "Unità di Misura (es: m³, L, kW)",
+          "scan_interval": "Intervallo Scansione (secondi)",
+          "log_as_csv": "Registra Dati come CSV",
+          "save_images": "Salva Immagini Acquisite",
+          "enable_upload": "Abilita Caricamento Giornaliero",
+          "upload_url": "URL di Caricamento (se abilitato)",
+          "api_key": "Chiave API (se caricamento abilitato)"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "Formato indirizzo IP non valido. Inserisci un IP valido.",
+      "invalid_scan_interval": "L'intervallo di scansione deve essere un numero positivo.",
+      "name_required": "Il nome dell'istanza non può essere vuoto.",
+      "cannot_connect": "Connessione fallita.",
+      "invalid_auth": "Autenticazione non valida.",
+      "unknown": "Si è verificato un errore sconosciuto."
+    },
+    "abort": {
+      "already_configured": "Questo nome istanza o dispositivo AIOTED è già configurato.",
+      "reauth_successful": "Ri-autenticazione riuscita."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Gestore AIOTED",
+        "description": "Modifica le impostazioni per l'istanza del Gestore AIOTED.",
+        "data": {
+          "scan_interval": "Intervallo Scansione (secondi)",
+          "log_as_csv": "Registra Dati come CSV",
+          "save_images": "Salva Immagini Acquisite",
+          "enable_upload": "Abilita Caricamento Giornaliero",
+          "upload_url": "URL di Caricamento (se abilitato)",
+          "api_key": "Chiave API (se caricamento abilitato)"
+        }
+      }
+    },
+    "error": {
+      "invalid_scan_interval": "L'intervallo di scansione deve essere un numero positivo."
+    },
+    "abort": {}
+  }
+}

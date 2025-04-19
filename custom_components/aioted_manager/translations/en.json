@@ -1,24 +1,76 @@
 {
-"services": {
+  "services": {
     "collect_data": {
-        "name": "Collect Data",
-        "description": "Collect data from the AIOTED device.",
-        "fields": {
-          "instance_name": {
-            "name": "Instance Name",
-            "description": "The name of the AIOTED instance."
-            }
+      "name": "Collect Data",
+      "description": "Manually trigger data collection from the AIOTED device.",
+      "fields": {
+        "instance_name": {
+          "name": "Instance Name",
+          "description": "The name of the AIOTED instance to collect data from."
         }
+      }
     },
     "upload_data": {
-        "name": "Upload Data",
-        "description": "Upload data to a remote server.",
-        "fields": {
-          "instance_name": {
-            "name": "Instance Name",
-            "description": "The name of the AIOTED instance."
-            }
+      "name": "Upload Data",
+      "description": "Manually trigger the upload of collected data (images/logs) to the remote server.",
+      "fields": {
+        "instance_name": {
+          "name": "Instance Name",
+          "description": "The name of the AIOTED instance whose data should be uploaded."
         }
+      }
     }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "AIOTED Manager Setup",
+        "description": "Configure the connection and settings for your AIOTED device.",
+        "data": {
+          "instance_name": "Instance Name (Unique Identifier)",
+          "ip": "IP Address",
+          "device_class": "Device Class (e.g., water, gas, power)",
+          "unit_of_measurement": "Unit of Measurement (e.g., m³, L, kW)",
+          "scan_interval": "Scan Interval (seconds)",
+          "log_as_csv": "Log Data as CSV",
+          "save_images": "Save Captured Images",
+          "enable_upload": "Enable Daily Upload",
+          "upload_url": "Upload URL (if upload enabled)",
+          "api_key": "API Key (if upload enabled)"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "Invalid IP address format. Please enter a valid IP.",
+      "invalid_scan_interval": "Scan interval must be a positive number.",
+      "name_required": "Instance name cannot be empty.",
+      "cannot_connect": "Failed to connect.",
+      "invalid_auth": "Invalid authentication.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This AIOTED instance name or device is already configured.",
+      "reauth_successful": "Re-authentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AIOTED Manager Options",
+        "description": "Adjust settings for the AIOTED Manager instance.",
+        "data": {
+          "scan_interval": "Scan Interval (seconds)",
+          "log_as_csv": "Log Data as CSV",
+          "save_images": "Save Captured Images",
+          "enable_upload": "Enable Daily Upload",
+          "upload_url": "Upload URL (if upload enabled)",
+          "api_key": "API Key (if upload enabled)"
+        }
+      }
+    },
+    "error": {
+      "invalid_scan_interval": "Scan interval must be a positive number."
+    },
+    "abort": {}
   }
 }

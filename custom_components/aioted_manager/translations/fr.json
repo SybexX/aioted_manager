@@ -1,0 +1,76 @@
+{
+  "services": {
+    "collect_data": {
+      "name": "Collecter les Données",
+      "description": "Déclencher manuellement la collecte de données depuis l'appareil AIOTED.",
+      "fields": {
+        "instance_name": {
+          "name": "Nom de l'Instance",
+          "description": "Le nom de l'instance AIOTED dont il faut collecter les données."
+        }
+      }
+    },
+    "upload_data": {
+      "name": "Téléverser les Données",
+      "description": "Déclencher manuellement le téléversement des données collectées (images/logs) vers le serveur distant.",
+      "fields": {
+        "instance_name": {
+          "name": "Nom de l'Instance",
+          "description": "Le nom de l'instance AIOTED dont les données doivent être téléversées."
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration du Gestionnaire AIOTED",
+        "description": "Configurer la connexion et les paramètres pour votre appareil AIOTED.",
+        "data": {
+          "instance_name": "Nom de l'Instance (Identifiant Unique)",
+          "ip": "Adresse IP",
+          "device_class": "Classe d'Appareil (ex: eau, gaz, électricité)",
+          "unit_of_measurement": "Unité de Mesure (ex: m³, L, kW)",
+          "scan_interval": "Intervalle de Scan (secondes)",
+          "log_as_csv": "Enregistrer les Données en CSV",
+          "save_images": "Sauvegarder les Images Capturées",
+          "enable_upload": "Activer le Téléversement Quotidien",
+          "upload_url": "URL de Téléversement (si activé)",
+          "api_key": "Clé API (si téléversement activé)"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "Format d'adresse IP invalide. Veuillez entrer une IP valide.",
+      "invalid_scan_interval": "L'intervalle de scan doit être un nombre positif.",
+      "name_required": "Le nom de l'instance ne peut pas être vide.",
+      "cannot_connect": "Échec de la connexion.",
+      "invalid_auth": "Authentification invalide.",
+      "unknown": "Une erreur inconnue s'est produite."
+    },
+    "abort": {
+      "already_configured": "Ce nom d'instance ou cet appareil AIOTED est déjà configuré.",
+      "reauth_successful": "Réauthentification réussie."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options du Gestionnaire AIOTED",
+        "description": "Ajuster les paramètres pour l'instance du Gestionnaire AIOTED.",
+        "data": {
+          "scan_interval": "Intervalle de Scan (secondes)",
+          "log_as_csv": "Enregistrer les Données en CSV",
+          "save_images": "Sauvegarder les Images Capturées",
+          "enable_upload": "Activer le Téléversement Quotidien",
+          "upload_url": "URL de Téléversement (si activé)",
+          "api_key": "Clé API (si téléversement activé)"
+        }
+      }
+    },
+    "error": {
+      "invalid_scan_interval": "L'intervalle de scan doit être un nombre positif."
+    },
+    "abort": {}
+  }
+}
