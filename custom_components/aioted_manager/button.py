@@ -65,3 +65,16 @@ class RebootButton(ButtonEntity):
             self._is_rebooting = False
             self.async_write_ha_state()  # force update on button
             _LOGGER.debug(f"Reboot process finished for instance: {self._instance_name}")
+
+
+    # @property
+    # def device_info(self):
+    #     return {
+    #         "identifiers": {(DOMAIN, self._instance_name)}, # Or use config_entry.entry_id
+    #         "name": f"AIOTED Meter ({self._instance_name})",
+    #         # "manufacturer": "AI-on-the-Edge-Device", # Or the actual manufacturer
+    #         # "model": "Meter Reader", # Specify model if known
+    #         # "sw_version": version_from_api, # If you can get it
+    #         "via_device": (DOMAIN, self._instance_name), # Link button to sensor's device entry
+    #         "configuration_url": f"http://{self._ip_address}", # Link to device UI
+    #     }

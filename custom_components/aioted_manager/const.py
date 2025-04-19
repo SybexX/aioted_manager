@@ -1,7 +1,7 @@
 # Default values
 DOMAIN = "aioted_manager"
 DEFAULT_SCAN_INTERVAL = 300  # Default scan interval in seconds
-DEFAULT_FLOW_ROUND_TIME_WAIT = 30  # Default time in seconds to run a complete round
+# DEFAULT_FLOW_ROUND_TIME_WAIT = 30  # Default time in seconds to run a complete round
 
 ### api doc : https://jomjol.github.io/AI-on-the-edge-device-docs/REST-API/
 API_flow_start = "flow_start"
@@ -54,7 +54,7 @@ UNIT_OF_MEASUREMENTS = {
 }
 
 # Define the shared schema
-SHARED_SCHEMA = {
+""" SHARED_SCHEMA = {
     vol.Required("instance_name"): str,
     vol.Required("ip"): str,
     vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
@@ -65,5 +65,5 @@ SHARED_SCHEMA = {
     vol.Optional("enable_upload", default=False): bool,
     vol.Optional("upload_url"): str,
     vol.Optional("api_key"): str,
-}
+} """
 

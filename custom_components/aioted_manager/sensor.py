@@ -62,7 +62,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     # Set up the time-based update (cron-like)
     async def async_update_wrapper(now):
         """Wrapper to update the sensor data."""
-        await sensor.async_update()
+        # await sensor.async_update() ## if call by throttle
+        await sensor._async_update() # # Call the internal update method directly
 
     async_track_time_interval(hass, async_update_wrapper, timedelta(seconds=scan_interval))
     _LOGGER.debug(f"Scheduled time-based updates every {scan_interval} seconds for sensor: {instance_name}")
@@ -98,7 +99,7 @@ class MeterCollectorSensor(Entity):
         self._enabled = True  # Default to enabled
         _LOGGER.debug(f"Sensor initialized for instance: {instance_name}")
         # Add Throttle
-        self.async_update = Throttle(self._scan_interval)(self._async_update)
+        # self.async_update = Throttle(self._scan_interval)(self._async_update) #remove throttle as duplicate with async_track_time_interval
 
     @property
     def name(self):
@@ -135,6 +136,18 @@ class MeterCollectorSensor(Entity):
         """Return if entity is available."""
         # This property now correctly reflects the internal _enabled state
         return self._enabled
+    
+    # @property
+    # def device_info(self):
+    #     return {
+    #         "identifiers": {(DOMAIN, self._instance_name)}, # Or use config_entry.entry_id
+    #         "name": f"AIOTED Meter ({self._instance_name})",
+    #         # "manufacturer": "AI-on-the-Edge-Device", # Or the actual manufacturer
+    #         # "model": "Meter Reader", # Specify model if known
+    #         # "sw_version": version_from_api, # If you can get it
+    #         # "via_device": (DOMAIN, self._instance_name), # 
+    #         "configuration_url": f"http://{self._ip_address}", # Link to device UI
+    #     }
 
     async def _async_update(self):
         """Fetch new state data for the sensor."""
@@ -200,7 +213,7 @@ class MeterCollectorSensor(Entity):
         """Fetch JSON data from the API."""
         try:
             session = async_get_clientsession(self._hass)
-            async with session.get(self._json_url) as response:
+            async with session.get(self._json_url, timeout=10) as response:
                 response.raise_for_status()
                 return await response.json()
         except Exception as e:
@@ -273,7 +286,7 @@ class MeterCollectorSensor(Entity):
             prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
             _LOGGER.warning(f"Error detected for {self._instance_name}, setting prevalue with URL: {prevalue_url}")
 
-            async with session.get(prevalue_url) as prevalue_response:
+            async with session.get(prevalue_url, timeout=10) as prevalue_response:
                 prevalue_response.raise_for_status()
                 response_text = await prevalue_response.text()
                 _LOGGER.debug(f"Set prevalue response for {self._instance_name}: {response_text}")
@@ -329,7 +342,7 @@ class MeterCollectorSensor(Entity):
 
         try:
             session = async_get_clientsession(self._hass)
-            async with session.get(self._image_url) as image_response:
+            async with session.get(self._image_url, timeout=10) as image_response:
                 image_response.raise_for_status()
                 image_data = await image_response.read()
 

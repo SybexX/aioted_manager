@@ -17,7 +17,7 @@ except ImportError:
 from .const import (
     DOMAIN,
     DEFAULT_SCAN_INTERVAL,
-    SHARED_SCHEMA, # Keep if used, but ideally define schemas locally
+    # SHARED_SCHEMA, # Keep if used, but ideally define schemas locally
     DEVICE_CLASSES,
     UNIT_OF_MEASUREMENTS
 )
@@ -154,7 +154,8 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Optional: Set unique ID to prevent duplicate entries for the same device/instance
                 # await self.async_set_unique_id(user_input["instance_name"]) # Or based on IP/MAC
-                # self._abort_if_unique_id_configured()
+                await self.async_set_unique_id(user_input["ip"])
+                self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
                     title=user_input["instance_name"],
@@ -202,9 +203,10 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
     # Store the config entry passed from async_get_options_flow
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # self.config_entry = config_entry
         # You can also pre-load options here if needed for multiple steps
         # self.options = dict(config_entry.options)
+        _LOGGER.debug("OptionsFlow initialized") # Add logging for debugging
 
     async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
         """Manage the options."""
