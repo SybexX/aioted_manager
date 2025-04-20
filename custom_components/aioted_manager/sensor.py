@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.util import Throttle
+# from homeassistant.util import Throttle
 from .const import *
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ class MeterCollectorSensor(Entity):
         self.api_key = api_key
         self._config_entry = config_entry
         self._enabled = True  # Default to enabled
+        self._last_run_timestamp = None # Track the last run timestamp
         _LOGGER.debug(f"Sensor initialized for instance: {instance_name}")
         # Add Throttle
         # self.async_update = Throttle(self._scan_interval)(self._async_update) #remove throttle as duplicate with async_track_time_interval
@@ -105,7 +106,13 @@ class MeterCollectorSensor(Entity):
     def name(self):
         """Return the name of the sensor."""
         return f"Meter Collector ({self._instance_name})"
-
+    
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        # Use instance_name for uniqueness within the domain
+        return f"{DOMAIN}_{self._instance_name}_sensor"
+    
     @property
     def state(self):
         """Return the state of the sensor."""
@@ -165,6 +172,12 @@ class MeterCollectorSensor(Entity):
                 if self._enabled:
                     _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to fetch failure.")
                     self._enabled = False
+                # Update attributes even on failure to show the last run time
+                self._attributes["last_run"] = self._last_run_timestamp
+                # Keep existing attributes if possible, otherwise just set last_run
+                if "error" not in self._attributes: # Avoid overwriting specific fetch error
+                     self._attributes["error"] = "Fetch failed"
+                # self.async_write_ha_state() # Update HA state - Handled by finally block
                 return
 
             values = self._extract_values(data)
@@ -173,6 +186,12 @@ class MeterCollectorSensor(Entity):
                 if self._enabled:
                     _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to data extraction failure.")
                     self._enabled = False
+                # Update attributes even on failure to show the last run time
+                self._attributes["last_run"] = self._last_run_timestamp
+                # Keep existing attributes if possible, otherwise just set last_run
+                if "error" not in self._attributes: # Avoid overwriting specific extract error
+                     self._attributes["error"] = "Extraction failed"
+                # self.async_write_ha_state() # Update HA state - Handled by finally block
                 return
 
             # If we got this far, the connection and basic data structure are okay. Mark as available.
@@ -183,11 +202,20 @@ class MeterCollectorSensor(Entity):
             if not self._validate_raw_value(values["raw_value"]):
                 # Validation failed, mark as unavailable
                 # Error message already logged in _validate_raw_value
-                self._enabled = False
+                if self._enabled: # Check before logging redundant message
+                    _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to invalid raw value.")
+                    self._enabled = False
+                # Update attributes even on failure to show the last run time
+                self._attributes["last_run"] = self._last_run_timestamp
+                # Keep existing attributes if possible, otherwise just set last_run
+                if "error" not in self._attributes: # Avoid overwriting specific validation error
+                     self._attributes["error"] = "Validation failed"
+                # self.async_write_ha_state() # Update HA state - Handled by finally block
                 return
 
             if self._should_skip_update(values["raw_value"]):
-                # Not an error, just skipping update. Availability remains unchanged.
+                # Update last_run timestamp even if skipping value update
+                self._attributes["last_run"] = self._last_run_timestamp
                 return
 
             # Handle prevalue setting on error
@@ -211,6 +239,9 @@ class MeterCollectorSensor(Entity):
 
     async def _fetch_json_data(self):
         """Fetch JSON data from the API."""
+        # Record the start time of the fetch attempt
+        self._last_run_timestamp = datetime.now().isoformat()
+        _LOGGER.debug(f"Attempting to fetch JSON data for {self._instance_name} at {self._last_run_timestamp}")
         try:
             session = async_get_clientsession(self._hass)
             async with session.get(self._json_url, timeout=10) as response:
@@ -319,13 +350,13 @@ class MeterCollectorSensor(Entity):
             await self._hass.async_add_executor_job(
                 self._write_csv,
                 csv_file,
-                unix_epoch,
+                unix_epoch, # Timestamp when HA saved the record
                 values["value"],
                 values["raw_value"],
                 values["pre"],
                 values["error_value"],
                 values["rate"],
-                values["timestamp"],
+                values["timestamp"], # Original timestamp from the device's JSON payload
             )
             _LOGGER.debug(f"Successfully wrote to CSV file for {self._instance_name}: {csv_file}")
         except Exception as e:
@@ -372,8 +403,9 @@ class MeterCollectorSensor(Entity):
                 "pre": values["pre"],
                 "error": values["error_value"],
                 "rate": values["rate"],
-                "timestamp": values["timestamp"],
-                "last_updated": datetime.now().isoformat(),
+                "timestamp": values["timestamp"], # Keep original timestamp attribute
+                "last_run": self._last_run_timestamp, # Added last run timestamp
+                "last_updated": datetime.now().isoformat(), # Timestamp of this specific state update
                 "last_raw_value": self._last_raw_value,
                 "current_raw_value": self._current_raw_value,
                 "entity_picture": self._latest_image_path, # Use the updated path
@@ -411,13 +443,13 @@ class MeterCollectorSensor(Entity):
                         "Timestamp (JSON)"
                     ])
                 csv_writer.writerow([
-                    unix_epoch,
+                    unix_epoch, # HA's timestamp
                     value,
                     raw_value,
                     pre,
                     error_value,
                     rate,
-                    timestamp
+                    timestamp # Device's timestamp from JSON
                 ])
         except Exception as e:
             _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
