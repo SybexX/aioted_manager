@@ -1,5 +1,3 @@
-# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\__init__.py
-
 import logging
 import voluptuous as vol
 

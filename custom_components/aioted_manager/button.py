@@ -1,4 +1,3 @@
-# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\button.py
 import logging
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession

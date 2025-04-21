@@ -1,4 +1,3 @@
-# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\config_flow.py
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback, HomeAssistant # Added HomeAssistant import

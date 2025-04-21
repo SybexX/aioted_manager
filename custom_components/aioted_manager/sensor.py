@@ -1,4 +1,3 @@
-# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\sensor.py
 import logging
 import os
 import csv
