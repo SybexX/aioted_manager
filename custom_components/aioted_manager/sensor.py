@@ -7,7 +7,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 # from homeassistant.util import Throttle
-from .const import *
+from .const import * # Import DOMAIN and other constants
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         enable_upload=enable_upload,
         upload_url=upload_url,
         api_key=api_key,
-        config_entry=config_entry
+        config_entry=config_entry # Pass config_entry for device_info if needed
     )
-    async_add_entities([sensor])
+    async_add_entities([sensor]) # Add the sensor first
     _LOGGER.debug(f"Added sensor entity for instance: {instance_name}")
 
     # Store the sensor in hass.data for service access
@@ -60,13 +60,14 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     _LOGGER.debug(f"Stored sensor in hass.data[{DOMAIN}][{instance_name}]")
 
     # Set up the time-based update (cron-like)
+    # This will schedule the *next* update after the initial one in async_added_to_hass
     async def async_update_wrapper(now):
         """Wrapper to update the sensor data."""
         # await sensor.async_update() ## if call by throttle
         await sensor._async_update() # # Call the internal update method directly
 
     async_track_time_interval(hass, async_update_wrapper, timedelta(seconds=scan_interval))
-    _LOGGER.debug(f"Scheduled time-based updates every {scan_interval} seconds for sensor: {instance_name}")
+    _LOGGER.debug(f"Scheduled subsequent time-based updates every {scan_interval} seconds for sensor: {instance_name}")
 
 
 class MeterCollectorSensor(Entity):
@@ -80,7 +81,7 @@ class MeterCollectorSensor(Entity):
         self._json_url = json_url
         self._image_url = image_url
         self._www_dir = www_dir
-        self._scan_interval = timedelta(seconds=scan_interval)
+        self._scan_interval = timedelta(seconds=scan_interval) # Keep for reference if needed
         self._instance_name = instance_name
         self.log_as_csv = log_as_csv
         self.save_images = save_images
@@ -95,24 +96,36 @@ class MeterCollectorSensor(Entity):
         self.enable_upload = enable_upload
         self.upload_url = upload_url
         self.api_key = api_key
-        self._config_entry = config_entry
-        self._enabled = True  # Default to enabled
+        self._config_entry = config_entry # Keep config_entry if needed elsewhere
+        self._enabled = True  # Default to enabled, _async_update will set if needed
         self._last_run_timestamp = None # Track the last run timestamp
         _LOGGER.debug(f"Sensor initialized for instance: {instance_name}")
         # Add Throttle
         # self.async_update = Throttle(self._scan_interval)(self._async_update) #remove throttle as duplicate with async_track_time_interval
 
+    # --- NEW METHOD ---
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass.
+
+        This is the ideal place to fetch the initial state.
+        """
+        _LOGGER.debug(f"Sensor {self.unique_id} added to HASS. Performing initial update.")
+        # Call the update method immediately after being added
+        await self._async_update()
+        # Note: The scheduled update via async_track_time_interval in async_setup_entry
+        # will handle subsequent updates.
+
     @property
     def name(self):
         """Return the name of the sensor."""
         return f"Meter Collector ({self._instance_name})"
-    
+
     @property
     def unique_id(self):
         """Return a unique ID."""
         # Use instance_name for uniqueness within the domain
         return f"{DOMAIN}_{self._instance_name}_sensor"
-    
+
     @property
     def state(self):
         """Return the state of the sensor."""
@@ -143,27 +156,39 @@ class MeterCollectorSensor(Entity):
         """Return if entity is available."""
         # This property now correctly reflects the internal _enabled state
         return self._enabled
-    
-    # @property
-    # def device_info(self):
-    #     return {
-    #         "identifiers": {(DOMAIN, self._instance_name)}, # Or use config_entry.entry_id
-    #         "name": f"AIOTED Meter ({self._instance_name})",
-    #         # "manufacturer": "AI-on-the-Edge-Device", # Or the actual manufacturer
-    #         # "model": "Meter Reader", # Specify model if known
-    #         # "sw_version": version_from_api, # If you can get it
-    #         # "via_device": (DOMAIN, self._instance_name), # 
-    #         "configuration_url": f"http://{self._ip_address}", # Link to device UI
-    #     }
+
+    @property
+    def device_info(self):
+        """Return device information to link this entity to a device."""
+        # This sensor entity defines the device itself.
+        # Other entities (like the button) will link to this device via 'via_device'.
+        return {
+            # Use a tuple of (DOMAIN, unique_identifier_for_the_device)
+            # Using instance_name is a good choice here as it's unique per setup.
+            # Alternatively, config_entry.entry_id could be used if preferred.
+            "identifiers": {(DOMAIN, self._instance_name)},
+            "name": f"AIOTED Meter ({self._instance_name})", # Name of the device in HA UI
+            "manufacturer": "AI-on-the-Edge-Device", # Replace if known
+            "model": "Meter Reader", # Replace with specific model if known (e.g., ESP32-CAM)
+            # "sw_version": self._attributes.get("firmware_version"), # Example: if you fetch firmware version
+            "configuration_url": f"http://{self._ip_address}", # Direct link to the device's web UI
+            # Do NOT add 'via_device' here, as this entity defines the device.
+        }
 
     async def _async_update(self):
         """Fetch new state data for the sensor."""
-        if not self._enabled and self._state is not None: # Check if already disabled and has a state to avoid unnecessary logs
-             _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
-             return
-
-        # Assume available until proven otherwise in this update cycle
-        # self._enabled = True # Removed this line - let's only set to False on error
+        # Removed the initial check for self._enabled here, as we want the first run
+        # from async_added_to_hass to proceed even if state is None.
+        # The logic inside will handle setting _enabled correctly.
+        # if not self._enabled and self._state is not None: # Check if already disabled and has a state to avoid unnecessary logs
+        #      _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
+        #      # Update last run timestamp even if disabled, so it's shown in attributes
+        #      self._attributes["last_run"] = datetime.now().isoformat()
+        #      self.async_write_ha_state() # Update HA state to reflect last run time
+        #      return
+        # Record the start time of the update attempt
+        self._last_run_timestamp = datetime.now().isoformat()
+        _LOGGER.debug(f"Starting _async_update for {self._instance_name} at {self._last_run_timestamp}")
 
         try:
             data = await self._fetch_json_data()
@@ -177,7 +202,7 @@ class MeterCollectorSensor(Entity):
                 # Keep existing attributes if possible, otherwise just set last_run
                 if "error" not in self._attributes: # Avoid overwriting specific fetch error
                      self._attributes["error"] = "Fetch failed"
-                # self.async_write_ha_state() # Update HA state - Handled by finally block
+                # self.async_write_ha_state() # Update HA state - moved to finally block
                 return
 
             values = self._extract_values(data)
@@ -191,7 +216,7 @@ class MeterCollectorSensor(Entity):
                 # Keep existing attributes if possible, otherwise just set last_run
                 if "error" not in self._attributes: # Avoid overwriting specific extract error
                      self._attributes["error"] = "Extraction failed"
-                # self.async_write_ha_state() # Update HA state - Handled by finally block
+                # self.async_write_ha_state() # Update HA state - moved to finally block
                 return
 
             # If we got this far, the connection and basic data structure are okay. Mark as available.
@@ -210,12 +235,13 @@ class MeterCollectorSensor(Entity):
                 # Keep existing attributes if possible, otherwise just set last_run
                 if "error" not in self._attributes: # Avoid overwriting specific validation error
                      self._attributes["error"] = "Validation failed"
-                # self.async_write_ha_state() # Update HA state - Handled by finally block
+                # self.async_write_ha_state() # Update HA state - moved to finally block
                 return
 
             if self._should_skip_update(values["raw_value"]):
                 # Update last_run timestamp even if skipping value update
                 self._attributes["last_run"] = self._last_run_timestamp
+                # self.async_write_ha_state() # Update HA state - moved to finally block
                 return
 
             # Handle prevalue setting on error
@@ -231,17 +257,22 @@ class MeterCollectorSensor(Entity):
         except Exception as e:
             _LOGGER.error(f"Unexpected error during update for {self._instance_name}: {e}", exc_info=True) # Add exc_info for full traceback
             self._state = "Error"
-            self._attributes = {"error": str(e)}
+            self._attributes = {"error": str(e), "last_run": self._last_run_timestamp} # Include last run time
             # Mark as unavailable on unexpected error
             if self._enabled:
                 _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to unexpected error.")
                 self._enabled = False
+        finally:
+            # Ensure HA state is updated after every attempt, reflecting availability and state changes
+            # This is crucial for the initial update in async_added_to_hass as well
+            _LOGGER.debug(f"Updating HA state for {self._instance_name} after _async_update attempt.")
+            self.async_write_ha_state()
+
 
     async def _fetch_json_data(self):
         """Fetch JSON data from the API."""
-        # Record the start time of the fetch attempt
-        self._last_run_timestamp = datetime.now().isoformat()
-        _LOGGER.debug(f"Attempting to fetch JSON data for {self._instance_name} at {self._last_run_timestamp}")
+        # self._last_run_timestamp is set in _async_update now
+        _LOGGER.debug(f"Attempting to fetch JSON data for {self._instance_name}")
         try:
             session = async_get_clientsession(self._hass)
             async with session.get(self._json_url, timeout=10) as response:
@@ -249,7 +280,7 @@ class MeterCollectorSensor(Entity):
                 return await response.json()
         except Exception as e:
             _LOGGER.error(f"Failed to fetch JSON data from {self._json_url} for {self._instance_name}: {e}")
-            self._state = "Error"
+            # self._state = "Error" # State is handled by caller (_async_update)
             self._attributes = {"error": f"Failed to fetch JSON data: {e}"}
             # No need to set self._enabled here, the caller (_async_update) handles it
             return None
@@ -258,7 +289,7 @@ class MeterCollectorSensor(Entity):
         """Extract values from the JSON data."""
         if not data or not isinstance(data, dict):
             _LOGGER.error(f"Invalid JSON structure for {self._instance_name}: Expected a dictionary, got {type(data)}")
-            self._state = "Error"
+            # self._state = "Error" # State is handled by caller (_async_update)
             self._attributes = {"error": "Invalid JSON structure"}
             # No need to set self._enabled here, the caller (_async_update) handles it
             return None
@@ -266,7 +297,7 @@ class MeterCollectorSensor(Entity):
         top_level_key = next(iter(data.keys()), None)
         if not top_level_key:
             _LOGGER.error(f"No top-level key found in JSON data for {self._instance_name}")
-            self._state = "Error"
+            # self._state = "Error" # State is handled by caller (_async_update)
             self._attributes = {"error": "No top-level key found in JSON data"}
             # No need to set self._enabled here, the caller (_async_update) handles it
             return None
@@ -289,7 +320,7 @@ class MeterCollectorSensor(Entity):
             return True
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Invalid raw value received for {self._instance_name}: {raw_value} ({e})")
-            self._state = "Error"
+            # self._state = "Error" # State is handled by caller (_async_update)
             self._attributes = {"error": f"Invalid raw value: {raw_value}"}
             # No need to set self._enabled here, the caller (_async_update) handles it
             return False
@@ -314,6 +345,8 @@ class MeterCollectorSensor(Entity):
             session = async_get_clientsession(self._hass)
             # Ensure 'pre' is a valid number before formatting the URL
             prevalue = round(float(pre))
+            # Construct URL using constant if available, otherwise hardcoded path
+            # Assuming API_setPreValue is not defined in const.py, using hardcoded path
             prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
             _LOGGER.warning(f"Error detected for {self._instance_name}, setting prevalue with URL: {prevalue_url}")
 
@@ -324,13 +357,13 @@ class MeterCollectorSensor(Entity):
 
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Invalid prevalue received for {self._instance_name}: {pre} ({e})")
-            self._state = "Error"
-            self._attributes = {"error": f"Invalid prevalue: {pre}"}
+            # Don't change state here, let the main update logic handle it
+            self._attributes["error"] = f"Invalid prevalue: {pre}"
             # Consider if this should make the sensor unavailable: self._enabled = False
         except Exception as e:
             _LOGGER.error(f"Failed to set prevalue for {self._instance_name}: {e}")
-            self._state = "Error"
-            self._attributes = {"error": f"Failed to set prevalue: {e}"}
+            # Don't change state here, let the main update logic handle it
+            self._attributes["error"] = f"Failed to set prevalue: {e}"
             # Consider if this should make the sensor unavailable: self._enabled = False
 
     async def _save_data(self, values):
@@ -369,7 +402,8 @@ class MeterCollectorSensor(Entity):
         image_filename = f"{image_file_base}{image_file_suffix}"
         image_file_full_path = os.path.join(self._www_dir, image_filename)
         latest_image_full_path = os.path.join(self._www_dir, "latest.jpg")
-        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{image_filename}" # Update local path
+        # Use relative path for HA frontend access
+        self._latest_image_path = f"/local/{DOMAIN}/{self._instance_name}/{image_filename}"
 
         try:
             session = async_get_clientsession(self._hass)
@@ -386,14 +420,17 @@ class MeterCollectorSensor(Entity):
         except Exception as e:
             _LOGGER.error(f"Failed to fetch or save image for {self._instance_name}: {e}")
             # Clear the image path attribute on error?
-            # self._latest_image_path = None
+            self._latest_image_path = None # Clear path if save fails
 
     def _update_state(self, values):
         """Update the sensor state and attributes."""
         try:
             # Ensure raw_value can be converted to float before updating state
             current_raw_float = float(values["raw_value"])
-            self._state = values["raw_value"] # Keep state as string as received? Or float? Let's keep as received for now.
+            # --- Consider changing state to float for numeric device classes ---
+            # self._state = current_raw_float # Change this line if you want numeric state
+            self._state = values["raw_value"] # Keep state as string (as it was)
+            # --- End consideration ---
             self._current_raw_value = current_raw_float
             self._last_raw_value = self._current_raw_value # Update last known good value
 
@@ -408,16 +445,17 @@ class MeterCollectorSensor(Entity):
                 "last_updated": datetime.now().isoformat(), # Timestamp of this specific state update
                 "last_raw_value": self._last_raw_value,
                 "current_raw_value": self._current_raw_value,
-                "entity_picture": self._latest_image_path, # Use the updated path
+                # "entity_picture": self._latest_image_path, # entity_picture is set directly, not via attribute
             }
             # Ensure sensor is marked available if state update is successful
-            if not self._enabled:
-                _LOGGER.info(f"Marking sensor {self._instance_name} as available after successful state update.")
-                self._enabled = True
+            # This is now handled earlier in _async_update after successful fetch/extract
+            # if not self._enabled:
+            #     _LOGGER.info(f"Marking sensor {self._instance_name} as available after successful state update.")
+            #     self._enabled = True
 
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Failed to update state for {self._instance_name} due to invalid raw value '{values['raw_value']}': {e}")
-            self._state = "Error"
+            self._state = "Error" # Keep state as Error
             self._attributes["error"] = f"Invalid raw value during state update: {values['raw_value']}"
             if self._enabled:
                  _LOGGER.warning(f"Marking sensor {self._instance_name} as unavailable due to state update failure.")
@@ -452,13 +490,17 @@ class MeterCollectorSensor(Entity):
                     timestamp # Device's timestamp from JSON
                 ])
         except Exception as e:
+            # Log error but don't re-raise to avoid crashing the update loop
             _LOGGER.error(f"Failed to write to CSV file {csv_file}: {e}")
 
     def _write_image(self, image_file, image_data):
         """Helper method to write image data to a file in an executor thread."""
         try:
+            # Ensure directory exists before writing
+            os.makedirs(os.path.dirname(image_file), exist_ok=True)
             with open(image_file, "wb") as imgfile:
                 imgfile.write(image_data)
         except Exception as e:
+            # Log error but don't re-raise to avoid crashing the update loop
             _LOGGER.error(f"Failed to write image to file {image_file}: {e}")
 

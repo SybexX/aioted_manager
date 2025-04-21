@@ -1,7 +1,8 @@
+# c:\Users\nl\Dropbox\home_automation\meter_reader\homeassistant\custom_components\aioted_manager\custom_components\aioted_manager\button.py
 import logging
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from .const import *
+from .const import DOMAIN, API_reboot # Import DOMAIN and API_reboot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         hass=hass,
         ip_address=ip_address,
         instance_name=instance_name
+        # Pass config_entry if needed for device_info identifier, but instance_name is sufficient here
     )
     async_add_entities([button])
     _LOGGER.debug(f"Added button entity for instance: {instance_name}")
@@ -56,7 +58,7 @@ class RebootButton(ButtonEntity):
         try:
             _LOGGER.debug(f"Sending reboot request to {self.url}")
             # Example: Use GET instead of POST if required
-            async with session.get(self.url) as response:
+            async with session.get(self.url, timeout=10) as response: # Added timeout
                 response.raise_for_status()  # Raise an exception for bad status codes
                 _LOGGER.info(f"Reboot request successful for {self._instance_name}. Status code: {response.status}")
         except Exception as e:
@@ -67,14 +69,22 @@ class RebootButton(ButtonEntity):
             _LOGGER.debug(f"Reboot process finished for instance: {self._instance_name}")
 
 
-    # @property
-    # def device_info(self):
-    #     return {
-    #         "identifiers": {(DOMAIN, self._instance_name)}, # Or use config_entry.entry_id
-    #         "name": f"AIOTED Meter ({self._instance_name})",
-    #         # "manufacturer": "AI-on-the-Edge-Device", # Or the actual manufacturer
-    #         # "model": "Meter Reader", # Specify model if known
-    #         # "sw_version": version_from_api, # If you can get it
-    #         "via_device": (DOMAIN, self._instance_name), # Link button to sensor's device entry
-    #         "configuration_url": f"http://{self._ip_address}", # Link to device UI
-    #     }
+    @property
+    def device_info(self):
+        """Return device information to link this entity to the main device."""
+        # This button entity belongs to the device defined by the sensor.
+        # We link it using 'via_device' with the *same identifier* used in the sensor's 'identifiers'.
+        # Even with via_device, HA requires 'identifiers' or 'connections' to be present.
+        return {
+            # Add identifiers, using the same tuple as the main device defined in sensor.py
+            # This satisfies the HA schema validation requirement.
+            "identifiers": {(DOMAIN, self._instance_name)},
+
+            # IMPORTANT: Use 'via_device' to link to the sensor's device entry.
+            # The value MUST be the *exact same tuple* used in the sensor's 'identifiers'.
+            "via_device": (DOMAIN, self._instance_name),
+
+            # You generally DON'T need to repeat name, manufacturer, etc. here
+            # as HA will get them from the device linked via 'via_device'.
+        }
+
