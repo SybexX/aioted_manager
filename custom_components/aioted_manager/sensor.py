@@ -88,7 +88,7 @@ class MeterCollectorSensor(Entity):
         self._attributes = {}
         self._last_raw_value = None
         self._current_raw_value = None
-        self._error_value = None
+        # self._error_value = None # This internal variable is not strictly needed as it's handled in values dict
         self._latest_image_path = None
         self._device_class = device_class
         self._unit_of_measurement = unit_of_measurement
@@ -237,21 +237,25 @@ class MeterCollectorSensor(Entity):
                 # self.async_write_ha_state() # Update HA state - moved to finally block
                 return
 
-            if self._should_skip_update(values["raw_value"]):
+            # Check for skip *only if* there's no device error in the current payload.
+            # This ensures that updates with errors, or updates where errors just cleared, are processed.
+            if values["error_value"].lower() == "no error" and self._should_skip_update(values["raw_value"]):
                 # Update last_run timestamp even if skipping value update
                 self._attributes["last_run"] = self._last_run_timestamp
-                # self.async_write_ha_state() # Update HA state - moved to finally block
-                return
+                _LOGGER.debug(f"Skipping update for {self._instance_name} due to non-increasing value and no device error.")
+                # No need to call async_write_ha_state here, finally block handles it.
+                return # Exit early ONLY if no error AND value hasn't increased
 
-            # Handle prevalue setting on error
+            # Handle prevalue setting on error (this runs even if value decreased, if error exists)
             if values["error_value"].lower() != "no error":
                 await self._set_prevalue_on_error(values["pre"])
                 # Note: We might still consider the sensor available even if there's a reading error,
                 # as it's still communicating. If not desired, add self._enabled = False here.
 
-            await self._save_data(values)
 
-            self._update_state(values)
+            # Save data and update state (this will now run if error cleared or if value increased)
+            await self._save_data(values)
+            self._update_state(values) # This will now set error attribute based on current values
 
         except Exception as e:
             _LOGGER.error(f"Unexpected error during update for {self._instance_name}: {e}", exc_info=True) # Add exc_info for full traceback
@@ -306,7 +310,7 @@ class MeterCollectorSensor(Entity):
             "value": nested_data.get("value"),
             "raw_value": nested_data.get("raw"),
             "pre": nested_data.get("pre"),
-            "error_value": nested_data.get("error"),
+            "error_value": nested_data.get("error"), # This holds the error string from JSON
             "rate": nested_data.get("rate"),
             "timestamp": nested_data.get("timestamp"),
         }
@@ -357,12 +361,12 @@ class MeterCollectorSensor(Entity):
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Invalid prevalue received for {self._instance_name}: {pre} ({e})")
             # Don't change state here, let the main update logic handle it
-            self._attributes["error"] = f"Invalid prevalue: {pre}"
+            # self._attributes["error"] = f"Invalid prevalue: {pre}"
             # Consider if this should make the sensor unavailable: self._enabled = False
         except Exception as e:
             _LOGGER.error(f"Failed to set prevalue for {self._instance_name}: {e}")
             # Don't change state here, let the main update logic handle it
-            self._attributes["error"] = f"Failed to set prevalue: {e}"
+            # self._attributes["error"] = f"Failed to set prevalue: {e}"
             # Consider if this should make the sensor unavailable: self._enabled = False
 
     async def _save_data(self, values):
@@ -397,6 +401,7 @@ class MeterCollectorSensor(Entity):
     async def _save_image(self, unix_epoch, values):
         """Save image data."""
         image_file_base = f"{unix_epoch}_{values['raw_value']}"
+        # Use error_value from the current values dict to determine suffix
         image_file_suffix = "_err.jpg" if values["error_value"] != "no error" else ".jpg"
         image_filename = f"{image_file_base}{image_file_suffix}"
         image_file_full_path = os.path.join(self._www_dir, image_filename)
@@ -433,6 +438,7 @@ class MeterCollectorSensor(Entity):
             self._current_raw_value = current_raw_float
             self._last_raw_value = self._current_raw_value # Update last known good value
 
+            # Set attributes based *only* on the current values dictionary
             self._attributes = {
                 "value": values["value"],
                 "raw": values["raw_value"],
