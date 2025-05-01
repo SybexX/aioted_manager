@@ -11,7 +11,8 @@ const.py already setup :
 Need to call API_flow_start in sensor.py, wait and get values
 
 #### Better error handling if Neg rate or too High rate
-* sensor.py L 227 : Set prevalue on error
+* sensor.py : Set prevalue on error
+* ~~check box to disable error checking~~
 
 
 ## DONE
