@@ -26,6 +26,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     enable_upload = config_entry.options.get("enable_upload", False)
     upload_url = config_entry.options.get("upload_url", "")
     api_key = config_entry.options.get("api_key", "")
+    disable_error_checking = config_entry.options.get("disable_error_checking", False) 
 
     # Create the www directory if it doesn't exist
     os.makedirs(www_dir, exist_ok=True)
@@ -46,7 +47,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         enable_upload=enable_upload,
         upload_url=upload_url,
         api_key=api_key,
-        config_entry=config_entry # Pass config_entry for device_info if needed
+        disable_error_checking=disable_error_checking,
+        config_entry=config_entry 
     )
     async_add_entities([sensor]) # Add the sensor first
     _LOGGER.debug(f"Added sensor entity for instance: {instance_name}")
@@ -72,7 +74,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class MeterCollectorSensor(Entity):
     """Representation of a Meter Collector sensor."""
 
-    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images, device_class, unit_of_measurement, enable_upload, upload_url, api_key, config_entry):
+    def __init__(self, hass, ip_address, json_url, image_url, www_dir, scan_interval, instance_name, log_as_csv, save_images, device_class, unit_of_measurement, enable_upload, upload_url, api_key, disable_error_checking, config_entry):
         """Initialize the sensor."""
         _LOGGER.debug(f"Initializing sensor for instance: {instance_name}")
         self._hass = hass
@@ -95,6 +97,7 @@ class MeterCollectorSensor(Entity):
         self.enable_upload = enable_upload
         self.upload_url = upload_url
         self.api_key = api_key
+        self._disable_error_checking = disable_error_checking # Store the new option
         self._config_entry = config_entry # Keep config_entry if needed elsewhere
         self._enabled = True  # Default to enabled, _async_update will set if needed
         self._last_run_timestamp = None # Track the last run timestamp
@@ -162,9 +165,6 @@ class MeterCollectorSensor(Entity):
         # This sensor entity defines the device itself.
         # Other entities (like the button) will link to this device via 'via_device'.
         return {
-            # Use a tuple of (DOMAIN, unique_identifier_for_the_device)
-            # Using instance_name is a good choice here as it's unique per setup.
-            # Alternatively, config_entry.entry_id could be used if preferred.
             "identifiers": {(DOMAIN, self._instance_name)},
             "name": f"AIOTED Meter ({self._instance_name})", # Name of the device in HA UI
             "manufacturer": "AI-on-the-Edge-Device", # Replace if known
@@ -176,15 +176,6 @@ class MeterCollectorSensor(Entity):
 
     async def _async_update(self):
         """Fetch new state data for the sensor."""
-        # Removed the initial check for self._enabled here, as we want the first run
-        # from async_added_to_hass to proceed even if state is None.
-        # The logic inside will handle setting _enabled correctly.
-        # if not self._enabled and self._state is not None: # Check if already disabled and has a state to avoid unnecessary logs
-        #      _LOGGER.debug(f"Skipping update: sensor {self._instance_name} is disabled.")
-        #      # Update last run timestamp even if disabled, so it's shown in attributes
-        #      self._attributes["last_run"] = datetime.now().isoformat()
-        #      self.async_write_ha_state() # Update HA state to reflect last run time
-        #      return
         # Record the start time of the update attempt
         self._last_run_timestamp = datetime.now().isoformat()
         _LOGGER.debug(f"Starting _async_update for {self._instance_name} at {self._last_run_timestamp}")
@@ -248,9 +239,10 @@ class MeterCollectorSensor(Entity):
 
             # Handle prevalue setting on error (this runs even if value decreased, if error exists)
             if values["error_value"].lower() != "no error":
-                await self._set_prevalue_on_error(values["pre"])
-                # Note: We might still consider the sensor available even if there's a reading error,
-                # as it's still communicating. If not desired, add self._enabled = False here.
+                if not self._disable_error_checking: # Check the new option
+                    await self._set_prevalue_on_error(values["pre"])
+                else:
+                    _LOGGER.debug(f"Skipping prevalue set for {self._instance_name} due to 'disable error checking' option.")
 
 
             # Save data and update state (this will now run if error cleared or if value increased)
@@ -360,14 +352,8 @@ class MeterCollectorSensor(Entity):
 
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Invalid prevalue received for {self._instance_name}: {pre} ({e})")
-            # Don't change state here, let the main update logic handle it
-            # self._attributes["error"] = f"Invalid prevalue: {pre}"
-            # Consider if this should make the sensor unavailable: self._enabled = False
         except Exception as e:
             _LOGGER.error(f"Failed to set prevalue for {self._instance_name}: {e}")
-            # Don't change state here, let the main update logic handle it
-            # self._attributes["error"] = f"Failed to set prevalue: {e}"
-            # Consider if this should make the sensor unavailable: self._enabled = False
 
     async def _save_data(self, values):
         """Save data to CSV and images."""
@@ -431,8 +417,6 @@ class MeterCollectorSensor(Entity):
         try:
             # Ensure raw_value can be converted to float before updating state
             current_raw_float = float(values["raw_value"])
-            # --- Consider changing state to float for numeric device classes ---
-            # self._state = current_raw_float # Change this line if you want numeric state
             self._state = values["raw_value"] # Keep state as string (as it was)
             # --- End consideration ---
             self._current_raw_value = current_raw_float
@@ -452,11 +436,6 @@ class MeterCollectorSensor(Entity):
                 "current_raw_value": self._current_raw_value,
                 # "entity_picture": self._latest_image_path, # entity_picture is set directly, not via attribute
             }
-            # Ensure sensor is marked available if state update is successful
-            # This is now handled earlier in _async_update after successful fetch/extract
-            # if not self._enabled:
-            #     _LOGGER.info(f"Marking sensor {self._instance_name} as available after successful state update.")
-            #     self._enabled = True
 
         except (ValueError, TypeError) as e:
             _LOGGER.error(f"Failed to update state for {self._instance_name} due to invalid raw value '{values['raw_value']}': {e}")
@@ -508,4 +487,3 @@ class MeterCollectorSensor(Entity):
         except Exception as e:
             # Log error but don't re-raise to avoid crashing the update loop
             _LOGGER.error(f"Failed to write image to file {image_file}: {e}")
-

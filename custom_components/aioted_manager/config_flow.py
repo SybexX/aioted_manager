@@ -69,9 +69,11 @@ def _build_options_schema(config_entry: ConfigEntry) -> vol.Schema:
             "api_key",
             default=config_entry.options.get("api_key", "")
         ): str,
+        vol.Optional(
+            "disable_error_checking", # New checkbox key
+            default=config_entry.options.get("disable_error_checking", False) # Default to False (checking enabled)
+        ): bool,
         # --- Fields below are usually part of config_entry.data and NOT options ---
-        # --- Consider removing them from the options flow unless you specifically ---
-        # --- want users to change them here post-setup. ---
         # vol.Required(
         #     "instance_name",
         #     default=config_entry.data.get("instance_name") # From data
@@ -106,7 +108,6 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             _LOGGER.debug(f"User input received: {user_input}")
 
-            # --- Simplified Validation ---
             # Validate IP address format
             if not _is_valid_ip(user_input.get("ip", "")):
                 errors["ip"] = "invalid_ip"
@@ -149,9 +150,9 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "enable_upload": user_input.get("enable_upload", False),
                     "upload_url": user_input.get("upload_url", ""),
                     "api_key": user_input.get("api_key", ""),
+                    "disable_error_checking": user_input.get("disable_error_checking", False), # Save the new option
                 }
 
-                # Optional: Set unique ID to prevent duplicate entries for the same device/instance
                 # await self.async_set_unique_id(user_input["instance_name"]) # Or based on IP/MAC
                 await self.async_set_unique_id(user_input["ip"])
                 self._abort_if_unique_id_configured()
@@ -163,8 +164,6 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         # --- Define Schema for User Step ---
-        # Use SHARED_SCHEMA if it defines exactly what you need for the *initial* setup form
-        # Otherwise, define it explicitly here.
         user_schema = vol.Schema({
             vol.Required("instance_name"): str,
             vol.Required("ip"): str,
@@ -176,6 +175,7 @@ class MeterCollectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional("enable_upload", default=False): bool,
             vol.Optional("upload_url", default=""): str, # Default to empty string
             vol.Optional("api_key", default=""): str,     # Default to empty string
+            vol.Optional("disable_error_checking", default=False): bool, # Add the new option here
         })
 
         # Show the form with current values or errors
@@ -253,9 +253,3 @@ class MeterCollectorOptionsFlow(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders=None, # Add placeholders if needed
         )
-
-    # Removed _is_valid_ip as it's not typically needed/recommended in options flow
-    # If IP needs changing, it's usually better to re-add the integration.
-    # If you MUST allow changing IP via options, add the validation back here
-    # and ensure the integration handles the IP change correctly via the update listener.
-

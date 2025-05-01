@@ -36,7 +36,8 @@
           "save_images": "Salva Immagini Acquisite",
           "enable_upload": "Abilita Caricamento Giornaliero",
           "upload_url": "URL di Caricamento (se abilitato)",
-          "api_key": "Chiave API (se caricamento abilitato)"
+          "api_key": "Chiave API (se caricamento abilitato)",
+          "disable_error_checking": "Disabilita controllo errori (ignora errori dispositivo)"
         }
       }
     },
@@ -64,7 +65,8 @@
           "save_images": "Salva Immagini Acquisite",
           "enable_upload": "Abilita Caricamento Giornaliero",
           "upload_url": "URL di Caricamento (se abilitato)",
-          "api_key": "Chiave API (se caricamento abilitato)"
+          "api_key": "Chiave API (se caricamento abilitato)",
+          "disable_error_checking": "Disabilita controllo errori"
         }
       }
     },

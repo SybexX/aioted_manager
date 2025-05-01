@@ -36,7 +36,8 @@
           "save_images": "Save Captured Images",
           "enable_upload": "Enable Daily Upload",
           "upload_url": "Upload URL (if upload enabled)",
-          "api_key": "API Key (if upload enabled)"
+          "api_key": "API Key (if upload enabled)",
+          "disable_error_checking": "Disable error checking"
         }
       }
     },
@@ -64,7 +65,8 @@
           "save_images": "Save Captured Images",
           "enable_upload": "Enable Daily Upload",
           "upload_url": "Upload URL (if upload enabled)",
-          "api_key": "API Key (if upload enabled)"
+          "api_key": "API Key (if upload enabled)",
+          "disable_error_checking": "Disable error checking (ignore device errors)"
         }
       }
     },

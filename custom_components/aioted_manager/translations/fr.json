@@ -36,7 +36,8 @@
           "save_images": "Sauvegarder les Images Capturées",
           "enable_upload": "Activer le Téléversement Quotidien",
           "upload_url": "URL de Téléversement (si activé)",
-          "api_key": "Clé API (si téléversement activé)"
+          "api_key": "Clé API (si téléversement activé)",
+          "disable_error_checking": "Désactiver la vérification d'erreur (ignorer les erreurs de l'appareil)"
         }
       }
     },
@@ -64,7 +65,8 @@
           "save_images": "Sauvegarder les Images Capturées",
           "enable_upload": "Activer le Téléversement Quotidien",
           "upload_url": "URL de Téléversement (si activé)",
-          "api_key": "Clé API (si téléversement activé)"
+          "api_key": "Clé API (si téléversement activé)",
+          "disable_error_checking": "Désactiver la vérification d'erreur"
         }
       }
     },
