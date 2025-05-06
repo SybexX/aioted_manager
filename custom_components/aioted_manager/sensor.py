@@ -339,7 +339,8 @@ class MeterCollectorSensor(Entity):
         try:
             session = async_get_clientsession(self._hass)
             # Ensure 'pre' is a valid number before formatting the URL
-            prevalue = round(float(pre))
+            #prevalue = round(float(pre))
+            prevalue = float(pre)
             # Construct URL using constant if available, otherwise hardcoded path
             # Assuming API_setPreValue is not defined in const.py, using hardcoded path
             prevalue_url = f"http://{self._ip_address}/setPreValue?numbers={self._instance_name}&value={prevalue}"
